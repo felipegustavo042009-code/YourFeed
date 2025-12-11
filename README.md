@@ -1,70 +1,178 @@
-# Getting Started with Create React App
+# Sistema de Reservas - Frontend React
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Frontend completo em React para sistema de gerenciamento de reservas de salas e espaços.
 
-## Available Scripts
+## 🚀 Tecnologias
 
-In the project directory, you can run:
+- **React 18.3.1** - Biblioteca JavaScript para construção de interfaces
+- **Create React App** - Ferramenta oficial para criar aplicações React
+- **TailwindCSS 3.4.17** - Framework CSS utilitário
+- **JavaScript (ES6+)** - Linguagem de programação
 
-### `npm start`
+## 📋 Funcionalidades
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+### Autenticação
+- **Home**: Página inicial com design próprio e botões "Entrar" e "Ver Salas sem Login"
+- **Login**: Sistema de autenticação por e-mail com código de verificação
+  - Usuário insere e-mail
+  - Recebe código (simulado no frontend)
+  - Confirma código para autenticar
+  - Toast notifications durante carregamentos
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+### Gestão de Salas
+- **Visualização**: Todos podem ver as salas disponíveis
+- **Criação**: Apenas administradores podem criar novas salas
+- **Categorias**: Sala, Esporte, Palestra
+- **Informações**: Nome, descrição, categoria e capacidade máxima
 
-### `npm test`
+### Sistema de Reservas
+- **Calendário**: Navegação por 12 meses futuros e 3 meses anteriores
+- **Busca**: Por data ou nome do evento
+- **Criação**: Funcionários e administradores podem criar reservas
+- **Edição/Exclusão**: Apenas o criador da reserva pode editar/deletar
+- **Campos**: Nome do evento, sobre, sala, data/hora, quantidade de pessoas
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### Gestão de Usuários
+- **Avatar**: Gerado automaticamente com letra inicial e cor aleatória
+- **Perfil**: Nome e e-mail editável
+- **Administração**: Administradores podem ver todos os usuários e alterar tipos
+- **Tipos de Usuário**:
+  - `usuario`: Apenas visualização
+  - `funcionario`: Pode criar reservas
+  - `adm`: Controle total (criar salas, gerenciar usuários)
 
-### `npm run build`
+## 🎨 Design
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+- Interface totalmente responsiva
+- Design moderno com gradientes e sombras
+- Componentes reutilizáveis
+- Sistema de cores consistente
+- Animações suaves
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## 📦 Estrutura do Projeto
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+```
+src/
+├── components/
+│   ├── Navbar.jsx          # Barra de navegação
+│   └── Toast.jsx           # Notificações toast
+├── pages/
+│   ├── Home.jsx            # Página inicial
+│   ├── Login.jsx           # Página de login
+│   ├── Salas.jsx           # Gestão de salas
+│   ├── Reservar.jsx        # Calendário e reservas
+│   └── Usuario.jsx         # Perfil e gestão de usuários
+├── data/
+│   └── mockData.js         # Dados mockados (substituir por API)
+├── utils/
+│   └── avatar.js           # Gerador de avatares
+├── App.js                  # Componente principal
+├── index.js                # Entry point
+└── index.css               # Estilos globais (Tailwind)
+```
 
-### `npm run eject`
+## 🔧 Instalação
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+```bash
+# Instalar dependências
+npm install
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+# Iniciar servidor de desenvolvimento
+npm start
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+# Build para produção
+npm run build
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+# Testar a aplicação
+npm test
+```
 
-## Learn More
+## 🔌 Integração com Backend
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+### Dados Mockados
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+Os dados estão em `src/data/mockData.js`:
+- `mockUsuarios`: Lista de usuários
+- `mockSalas`: Lista de salas/espaços
+- `mockReservas`: Lista de reservas
 
-### Code Splitting
+### Endpoints do Backend
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+Para integrar com o backend, substitua as operações locais pelas chamadas de API:
 
-### Analyzing the Bundle Size
+#### Usuários
+- `GET /ListenUsuarios?idUsuario={id}` - Listar todos (apenas admin)
+- `POST /LoginUsuario?Email={email}&Senha={senha}` - Login
+- `POST /RegisterUsuarios-validarToken` - Registrar com token
+- `DELETE /DeleteUsuarios?idUsuario={id}` - Deletar usuário
+- `PATCH /AtualizarUsuarios?idUsuario={id}&tipoNovo={tipo}` - Atualizar tipo
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+#### Token
+- `POST /enviar-token?email={email}` - Enviar código de verificação
 
-### Making a Progressive Web App
+#### Salas (Ocupações)
+- `GET /ListarOcupacoes` - Listar todas as salas
+- `POST /CriarSala` - Criar sala (admin, com upload de imagem)
+- `DELETE /DeletarSala?idUsuario={id}&idSala={id}` - Deletar sala
+- `PATCH /AtualizarSala` - Atualizar sala
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+#### Reservas
+- `GET /ListarReserva?idUsuario={id}` - Listar reservas
+- `POST /CriarReserva` - Criar reserva (funcionário/admin)
+- `DELETE /DeletarReserva?idUsuario={id}&idReserva={id}` - Deletar
+- `PATCH /AtualizarReserva` - Atualizar reserva
 
-### Advanced Configuration
+### Exemplo de Integração
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+```javascript
+// Exemplo: Listar salas
+const listarSalas = async () => {
+  try {
+    const response = await fetch('http://localhost:4000/ListarOcupacoes');
+    const data = await response.json();
+    setSalas(data.ocupacoes);
+  } catch (error) {
+    showToast('Erro ao carregar salas', 'error');
+  }
+};
 
-### Deployment
+// Exemplo: Criar reserva
+const criarReserva = async (reserva) => {
+  try {
+    const response = await fetch(
+      `http://localhost:4000/CriarReserva?idUsuario=${usuario.id}&idOcupacao=${reserva.ocupacaoId}&data=${reserva.data}&quantidade=${reserva.quantidade}&nome=${reserva.nome}&sobre=${reserva.sobre}`,
+      { method: 'POST' }
+    );
+    const data = await response.json();
+    showToast('Reserva criada com sucesso!', 'success');
+  } catch (error) {
+    showToast('Erro ao criar reserva', 'error');
+  }
+};
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+## 👥 Usuários de Teste
 
-### `npm run build` fails to minify
+- **Admin**: admin@exemplo.com (Tipo: adm)
+- **Funcionário**: joao@exemplo.com (Tipo: funcionario)
+- **Usuário**: maria@exemplo.com (Tipo: usuario)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+## 📱 Responsividade
+
+O sistema é totalmente responsivo e funciona em:
+- Desktop (1920px+)
+- Tablet (768px - 1919px)
+- Mobile (320px - 767px)
+
+## 🎯 Próximos Passos
+
+1. Integrar com o backend real substituindo `mockData.js`
+2. Implementar upload de imagens para salas
+3. Adicionar persistência de autenticação (localStorage/sessionStorage)
+4. Implementar paginação para listas grandes
+5. Adicionar filtros avançados no calendário
+6. Implementar notificações em tempo real
+
+## 📄 Licença
+
+Projeto desenvolvido para fins educacionais.

@@ -1,5 +1,5 @@
 {
-  "name": "yourfeed",
+  "name": "sistema-reservas",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
@@ -7,12 +7,6 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^13.5.0",
-    "argon": "^2.0.21",
-    "argon2": "^0.44.0",
-    "axios": "^1.13.2",
-    "cors": "^2.8.5",
-    "express": "^5.2.1",
-    "mongoose": "^9.0.1",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "react-scripts": "5.0.1",
@@ -41,5 +35,10 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.22",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17"
   }
 }
