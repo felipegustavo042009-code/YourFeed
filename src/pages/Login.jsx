@@ -1,15 +1,17 @@
-import { useState } from "react";
+import { useState, useContext } from "react";
+import { GlobalContext } from "../variaveisGlobais";
 
 export default function Login({ onLogin, onVoltar, showToast }) {
+  const { idLocal, setId, tipoLocal, setTipo  } = useContext(GlobalContext);
   const [etapa, setEtapa] = useState("login");
   const [email, setEmail] = useState("");
   const [nome, setNome] = useState("");
   const [senha, setSenha] = useState("");
   const [codigo, setCodigo] = useState("");
 
-  const [textErroNome, setTextErroNome] = useState('');
-  const [textErroEmail, setTextErroEmail] = useState('');
-  const [textErroSenha, setTextErroSenha] = useState('');
+  const [textErroNome, setTextErroNome] = useState("");
+  const [textErroEmail, setTextErroEmail] = useState("");
+  const [textErroSenha, setTextErroSenha] = useState("");
 
   const [loading, setLoading] = useState(false);
 
@@ -19,7 +21,9 @@ export default function Login({ onLogin, onVoltar, showToast }) {
 
   const validarCadastro = () => {
     if (!regexNome.test(nome)) {
-      setTextErroNome("✗ Nome inválido. Use apenas letras e espaços (2–60 caracteres)");
+      setTextErroNome(
+        "✗ Nome inválido. Use apenas letras e espaços (2–60 caracteres)"
+      );
       return false;
     }
     setTextErroNome("✓ Nome válido");
@@ -36,7 +40,9 @@ export default function Login({ onLogin, onVoltar, showToast }) {
     setTextErroEmail("✓ Email válido");
 
     if (!regexSenha.test(senha)) {
-      setTextErroSenha("✗ Senha inválida. Deve ter 6–50 caracteres, 1 maiúscula, 1 minúscula e 1 número");
+      setTextErroSenha(
+        "✗ Senha inválida. Deve ter 6–50 caracteres, 1 maiúscula, 1 minúscula e 1 número"
+      );
       return false;
     }
     setTextErroSenha("✓ Senha válida");
@@ -56,12 +62,15 @@ export default function Login({ onLogin, onVoltar, showToast }) {
     }
 
     try {
-      const response = await fetch(`http://192.168.100.58:5000/enviar-token?email=${email}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      const response = await fetch(
+        `http://192.168.56.1:5000/enviar-token?email=${email}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
         }
-      });
+      );
 
       const data = await response.json();
 
@@ -90,17 +99,22 @@ export default function Login({ onLogin, onVoltar, showToast }) {
     }
 
     try {
-      const response = await fetch(`http://192.168.100.58:5000/LoginUsuario?Email=${email}&Senha=${senha}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      const response = await fetch(
+        `http://192.168.56.1:5000/LoginUsuario?Email=${email}&Senha=${senha}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
         }
-      });
+      );
 
       const data = await response.json();
 
       if (response.ok) {
         showToast("Login realizado com sucesso!", "success");
+        setId(data.id);
+        setTipo(data.tipo);
         onLogin(data);
       } else {
         showToast(data || "Credenciais inválidas", "error");
@@ -118,18 +132,23 @@ export default function Login({ onLogin, onVoltar, showToast }) {
     setLoading(true);
 
     try {
-      const response = await fetch(`http://192.168.100.58:5000/RegisterUsuarios-validarToken?email=${email}&senha=${senha}&nome=${nome}&token=${codigo}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      const response = await fetch(
+        `http://192.168.56.1:5000/RegisterUsuarios-validarToken?email=${email}&senha=${senha}&nome=${nome}&token=${codigo}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
         }
-      });
+      );
 
       const data = await response.json();
 
       if (response.ok) {
         showToast("Conta criada com sucesso! Faça login", "success");
         setEtapa("login");
+        setId(data.id)
+        setTipo(data.tipo)
         setNome("");
         setSenha("");
         setCodigo("");
@@ -165,8 +184,8 @@ export default function Login({ onLogin, onVoltar, showToast }) {
           {etapa === "login"
             ? "Entrar"
             : etapa === "cadastro"
-              ? "Cadastro"
-              : "Validar Código"}
+            ? "Cadastro"
+            : "Validar Código"}
         </h2>
 
         {etapa === "login" ? (
@@ -207,16 +226,7 @@ export default function Login({ onLogin, onVoltar, showToast }) {
             >
               {loading ? "Entrando..." : "Entrar"}
             </button>
-            
-            <button
-              type="button"
-              onClick={handleEnviarToken}
-              disabled={loading}
-              className="w-full text-blue-600 hover:text-blue-800 font-semibold py-2"
-            >
-              Esqueci minha senha
-            </button>
-            
+
             <button
               type="button"
               disabled={loading}
@@ -247,7 +257,11 @@ export default function Login({ onLogin, onVoltar, showToast }) {
                 required
                 disabled={loading}
               />
-              <span className={`text-sm mt-1 ${textErroNome.includes("✓") ? "text-green-600" : "text-red-600"}`}>
+              <span
+                className={`text-sm mt-1 ${
+                  textErroNome.includes("✓") ? "text-green-600" : "text-red-600"
+                }`}
+              >
                 {textErroNome}
               </span>
             </div>
@@ -265,7 +279,13 @@ export default function Login({ onLogin, onVoltar, showToast }) {
                 required
                 disabled={loading}
               />
-              <span className={`text-sm mt-1 ${textErroEmail.includes("✓") ? "text-green-600" : "text-red-600"}`}>
+              <span
+                className={`text-sm mt-1 ${
+                  textErroEmail.includes("✓")
+                    ? "text-green-600"
+                    : "text-red-600"
+                }`}
+              >
                 {textErroEmail}
               </span>
             </div>
@@ -283,7 +303,13 @@ export default function Login({ onLogin, onVoltar, showToast }) {
                 required
                 disabled={loading}
               />
-              <span className={`text-sm mt-1 ${textErroSenha.includes("✓") ? "text-green-600" : "text-red-600"}`}>
+              <span
+                className={`text-sm mt-1 ${
+                  textErroSenha.includes("✓")
+                    ? "text-green-600"
+                    : "text-red-600"
+                }`}
+              >
                 {textErroSenha}
               </span>
             </div>

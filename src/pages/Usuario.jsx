@@ -1,43 +1,81 @@
-import { useState } from 'react';
-import { mockUsuarios } from '../data/mockData';
-import { generateAvatar } from '../utils/avatar';
+import { useContext, useState, useEffect } from "react";
+import { mockUsuarios } from "../data/mockData";
+import { generateAvatar } from "../utils/avatar";
+import { GlobalContext } from "../variaveisGlobais";
 
 export default function Usuario({ usuario, onLogout, showToast }) {
   const [usuarios, setUsuarios] = useState(mockUsuarios);
-  const [editandoEmail, setEditandoEmail] = useState(false);
-  const [novoEmail, setNovoEmail] = useState(usuario?.email || '');
+  const { idLocal, setId,  tipoLocal, setTipo } = useContext(GlobalContext);
+  const [todosUsuario, setTodosUsuarios] = useState([]);
 
-  const isAdmin = usuario?.tipo === 'adm';
-  const { inicial, cor } = generateAvatar(usuario?.nome || '');
+  const [editandoEmail, setEditandoEmail] = useState(false);
+  const [novoEmail, setNovoEmail] = useState(usuario?.email || "");
+
+  const isAdmin = usuario?.tipo === "adm";
+  const { inicial, cor } = generateAvatar(usuario?.nome || "");
+
+  useEffect(() => {
+    pegarUsuarios();
+    console.log(todosUsuario)
+  }, []);
 
   const handleSalvarEmail = () => {
     setEditandoEmail(false);
-    showToast('E-mail atualizado com sucesso!', 'success');
+    showToast("E-mail atualizado com sucesso!", "success");
   };
 
+  async function pegarUsuarios() {
+    if (tipoLocal != "adm") {
+      return;
+    }
+
+    try {
+      const resposta = await fetch(`http://192.168.56.1:5000/ListenUsuarios?idUsuario=${idLocal}`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const dados = await resposta.json()
+      const dadosConvertido = dados.usuarios;
+
+      if(resposta.ok){
+        showToast("Usuarios pegos", 'success')
+        setTodosUsuarios(dados.usuarios);
+        console.log(resposta.usuarios)
+      }
+      else{
+       showToast("Erro ao pegar Usuarios", 'error')
+      }
+
+    } catch (error) {
+      console.log("Erro ao pegar dados", error);
+      showToast("Erro ao pegar dados", "error");
+    }
+  }
+
   const handleAlterarTipo = (idUsuario, novoTipo) => {
-    setUsuarios(usuarios.map(u => 
-      u.id === idUsuario ? { ...u, tipo: novoTipo } : u
-    ));
-    showToast('Tipo de usuário alterado!', 'success');
+    setUsuarios(
+      usuarios.map((u) => (u.id === idUsuario ? { ...u, tipo: novoTipo } : u))
+    );
+    showToast("Tipo de usuário alterado!", "success");
   };
 
   const getTipoLabel = (tipo) => {
     const labels = {
-      adm: 'Administrador',
-      funcionario: 'Funcionário',
-      usuario: 'Usuário'
+      adm: "Administrador",
+      funcionario: "Funcionário",
+      usuario: "Usuário",
     };
     return labels[tipo] || tipo;
   };
 
   const getTipoColor = (tipo) => {
     const cores = {
-      adm: 'bg-red-100 text-red-800',
-      funcionario: 'bg-blue-100 text-blue-800',
-      usuario: 'bg-gray-100 text-gray-800'
+      adm: "bg-red-100 text-red-800",
+      funcionario: "bg-blue-100 text-blue-800",
+      usuario: "bg-gray-100 text-gray-800",
     };
-    return cores[tipo] || 'bg-gray-100 text-gray-800';
+    return cores[tipo] || "bg-gray-100 text-gray-800";
   };
 
   return (
@@ -55,12 +93,20 @@ export default function Usuario({ usuario, onLogout, showToast }) {
           </div>
 
           <div className="flex items-center gap-6 mb-6">
-            <div className={`w-24 h-24 ${cor} rounded-full flex items-center justify-center text-white text-4xl font-bold`}>
+            <div
+              className={`w-24 h-24 ${cor} rounded-full flex items-center justify-center text-white text-4xl font-bold`}
+            >
               {inicial}
             </div>
             <div className="flex-1">
-              <h2 className="text-2xl font-semibold text-gray-800 mb-2">{usuario?.nome}</h2>
-              <span className={`px-4 py-1 rounded-full text-sm font-semibold ${getTipoColor(usuario?.tipo)}`}>
+              <h2 className="text-2xl font-semibold text-gray-800 mb-2">
+                {usuario?.nome}
+              </h2>
+              <span
+                className={`px-4 py-1 rounded-full text-sm font-semibold ${getTipoColor(
+                  usuario?.tipo
+                )}`}
+              >
                 {getTipoLabel(usuario?.tipo)}
               </span>
             </div>
@@ -68,7 +114,9 @@ export default function Usuario({ usuario, onLogout, showToast }) {
 
           <div className="border-t pt-6">
             <div className="mb-4">
-              <label className="block text-gray-700 font-semibold mb-2">E-mail</label>
+              <label className="block text-gray-700 font-semibold mb-2">
+                E-mail
+              </label>
               {editandoEmail ? (
                 <div className="flex gap-2">
                   <input
@@ -86,7 +134,7 @@ export default function Usuario({ usuario, onLogout, showToast }) {
                   <button
                     onClick={() => {
                       setEditandoEmail(false);
-                      setNovoEmail(usuario?.email || '');
+                      setNovoEmail(usuario?.email || "");
                     }}
                     className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold px-4 py-2 rounded-lg transition duration-300"
                   >
@@ -110,27 +158,41 @@ export default function Usuario({ usuario, onLogout, showToast }) {
 
         {isAdmin && (
           <div className="bg-white rounded-2xl shadow-lg p-8">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6">Gerenciar Usuários</h2>
+            <h2 className="text-2xl font-bold text-gray-800 mb-6">
+              Gerenciar Usuários
+            </h2>
             <div className="space-y-4">
-              {usuarios.map((u) => {
-                const { inicial: inicialUsuario, cor: corUsuario } = generateAvatar(u.nome);
+              {todosUsuario.map((u) => {
+                const { inicial: inicialUsuario, cor: corUsuario } =
+                  generateAvatar(u.Nome);
                 return (
-                  <div key={u.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                  <div
+                    key={u._id}
+                    className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
+                  >
                     <div className="flex items-center gap-4">
-                      <div className={`w-12 h-12 ${corUsuario} rounded-full flex items-center justify-center text-white text-xl font-bold`}>
+                      <div
+                        className={`w-12 h-12 ${corUsuario} rounded-full flex items-center justify-center text-white text-xl font-bold`}
+                      >
                         {inicialUsuario}
                       </div>
                       <div>
-                        <h3 className="font-semibold text-gray-800">{u.nome}</h3>
-                        <p className="text-sm text-gray-600">{u.email}</p>
+                        <h3 className="font-semibold text-gray-800">
+                          {u.Nome}
+                        </h3>
+                        <p className="text-sm text-gray-600">{u.Email}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
                       <select
-                        value={u.tipo}
-                        onChange={(e) => handleAlterarTipo(u.id, e.target.value)}
-                        className={`px-4 py-2 rounded-lg font-semibold border-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${getTipoColor(u.tipo)}`}
-                        disabled={u.id === usuario?.id}
+                        value={u.Tipo}
+                        onChange={(e) =>
+                          handleAlterarTipo(u.id, e.target.value)
+                        }
+                        className={`px-4 py-2 rounded-lg font-semibold border-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${getTipoColor(
+                          u.tipo
+                        )}`}
+                        disabled={u._id === usuario?._id}
                       >
                         <option value="usuario">Usuário</option>
                         <option value="funcionario">Funcionário</option>

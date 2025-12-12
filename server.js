@@ -253,7 +253,8 @@ app.post('/RegisterUsuarios-validarToken', async (req, res) => {
         const usuarioobjeto = novoUsuario.toObject()
 
         res.status(200).json({
-            id: usuarioobjeto.id.toString()
+            id: usuarioobjeto.id.toString(),
+            tipo: usuarioobjeto.tipo.toString(),
         })
     }
     catch (error) {
@@ -332,10 +333,11 @@ app.post('/enviar-token', async (req, res) => {
             { upsert: true, new: true }
         );
 
-        // DEBUG: Verifique se as variáveis de ambiente estão carregadas
+        //Deepsek, verificar o que esta pegando
         console.log('Email config:', process.env.EMAIL);
         console.log('Senha config:', process.env.EMAIL_SENHA ? '***' : 'NÃO DEFINIDA');
 
+        //Criando transporter para pegar e enviar email/, somente para gmail.com
         const transporte = nodemailer.createTransport({
             service: 'gmail',
             auth: {
