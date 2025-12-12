@@ -1,54 +1,147 @@
-import { use, useState } from "react";
-import { mockUsuarios } from "../data/mockData";
+import { useState } from "react";
 
 export default function Login({ onLogin, onVoltar, showToast }) {
   const [etapa, setEtapa] = useState("login");
   const [email, setEmail] = useState("");
   const [nome, setNome] = useState("");
-  const [senha, setsenha] = useState("");
+  const [senha, setSenha] = useState("");
   const [codigo, setCodigo] = useState("");
+
+  const [textErroNome, setTextErroNome] = useState('');
+  const [textErroEmail, setTextErroEmail] = useState('');
+  const [textErroSenha, setTextErroSenha] = useState('');
+
   const [loading, setLoading] = useState(false);
-  const [codigoEnviado, setCodigoEnviado] = useState("");
-  const [loginOuCadastro, setLoadingOuCadastro] = useState(false);
 
-  const handleEnviarEmail = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    showToast("Enviando código...", "info");
+  const regexNome = /^[A-Za-zÀ-ÖØ-öø-ÿ\s]{2,60}$/;
+  const regexEmail = /^[A-Za-z0-9._%+-]+@(gmail\.com|outlook\.com)$/;
+  const regexSenha = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,50}$/;
 
-    setTimeout(() => {
-      const codigoGerado = Math.random()
-        .toString(36)
-        .substring(2, 8)
-        .toUpperCase();
-      setCodigoEnviado(codigoGerado);
-      setEtapa("codigo");
-      setLoading(false);
-      showToast(`Código enviado: ${codigoGerado}`, "success");
-    }, 1500);
+  const validarCadastro = () => {
+    if (!regexNome.test(nome)) {
+      setTextErroNome("✗ Nome inválido. Use apenas letras e espaços (2–60 caracteres)");
+      return false;
+    }
+    setTextErroNome("✓ Nome válido");
+
+    if (!email.trim()) {
+      setTextErroEmail("✗ Email é obrigatório");
+      return false;
+    }
+
+    if (!regexEmail.test(email) || email.length > 100) {
+      setTextErroEmail("✗ Email inválido ou muito longo (máx. 100 caracteres)");
+      return false;
+    }
+    setTextErroEmail("✓ Email válido");
+
+    if (!regexSenha.test(senha)) {
+      setTextErroSenha("✗ Senha inválida. Deve ter 6–50 caracteres, 1 maiúscula, 1 minúscula e 1 número");
+      return false;
+    }
+    setTextErroSenha("✓ Senha válida");
+    return true;
   };
 
-  async function criarUsuario() {}
+  const handleEnviarToken = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    if (etapa === "cadastro") {
+      if (!validarCadastro()) {
+        showToast("Corrija os erros antes de continuar", "error");
+        setLoading(false);
+        return;
+      }
+    }
+
+    try {
+      const response = await fetch(`http://192.168.100.58:5000/enviar-token?email=${email}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        showToast("Token enviado com sucesso!", "success");
+        setEtapa("codigo");
+      } else {
+        showToast(data.error || "Erro ao enviar token", "error");
+      }
+    } catch (error) {
+      showToast("Erro ao conectar com o servidor", "error");
+      console.error("Erro:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    if (!email || !senha) {
+      showToast("Preencha email e senha", "error");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://192.168.100.58:5000/LoginUsuario?Email=${email}&Senha=${senha}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        showToast("Login realizado com sucesso!", "success");
+        onLogin(data);
+      } else {
+        showToast(data || "Credenciais inválidas", "error");
+      }
+    } catch (error) {
+      showToast("Erro ao conectar com o servidor", "error");
+      console.error("Erro:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleValidarCodigo = async (e) => {
     e.preventDefault();
     setLoading(true);
-    showToast("Validando código...", "info");
 
-    setTimeout(() => {
-      if (codigo === codigoEnviado) {
-        const usuario = mockUsuarios.find((u) => u.email === email);
-        if (usuario) {
-          showToast("Login realizado com sucesso!", "success");
-          onLogin(usuario);
-        } else {
-          showToast("Usuário não encontrado", "error");
+    try {
+      const response = await fetch(`http://192.168.100.58:5000/RegisterUsuarios-validarToken?email=${email}&senha=${senha}&nome=${nome}&token=${codigo}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         }
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        showToast("Conta criada com sucesso! Faça login", "success");
+        setEtapa("login");
+        setNome("");
+        setSenha("");
+        setCodigo("");
       } else {
-        showToast("Código inválido", "error");
+        showToast(data.error || "Erro ao criar conta", "error");
       }
+    } catch (error) {
+      showToast("Erro ao conectar com o servidor", "error");
+      console.error("Erro:", error);
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
   return (
@@ -56,14 +149,13 @@ export default function Login({ onLogin, onVoltar, showToast }) {
       <div className="max-w-md w-full bg-white rounded-2xl shadow-2xl p-8">
         <button
           onClick={onVoltar}
-          className="text-gray-600 hover:text-gray-800 mb-6 flex items-center"
+          className="text-gray-600 hover:text-gray-800 mb-6 flex items-center justify-center"
           style={{
-            background: "#2334",
-            borderRadius: 60,
-            fontSize: 20,
-            width: 30,
-            height: 30,
-            textAlign: "center",
+            background: "#f0f0f0",
+            borderRadius: "50%",
+            fontSize: "20px",
+            width: "30px",
+            height: "30px",
           }}
         >
           ←
@@ -73,12 +165,12 @@ export default function Login({ onLogin, onVoltar, showToast }) {
           {etapa === "login"
             ? "Entrar"
             : etapa === "cadastro"
-            ? "Cadastro"
-            : "Validar Código"}
+              ? "Cadastro"
+              : "Validar Código"}
         </h2>
 
         {etapa === "login" ? (
-          <form onSubmit={handleEnviarEmail}>
+          <form onSubmit={handleLogin}>
             <div className="mb-6">
               <label className="block text-gray-700 font-semibold mb-2">
                 E-mail
@@ -99,10 +191,10 @@ export default function Login({ onLogin, onVoltar, showToast }) {
               </label>
               <input
                 type="password"
-                value={email}
-                onChange={(e) => setsenha(e.target.value)}
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="seu@email.com"
+                placeholder="Digite sua senha"
                 required
                 disabled={loading}
               />
@@ -111,46 +203,59 @@ export default function Login({ onLogin, onVoltar, showToast }) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition duration-300 disabled:opacity-50"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition duration-300 disabled:opacity-50 mb-3"
             >
-              {loading ? "Enviando..." : "Enviar Código"}
+              {loading ? "Entrando..." : "Entrar"}
             </button>
+            
+            <button
+              type="button"
+              onClick={handleEnviarToken}
+              disabled={loading}
+              className="w-full text-blue-600 hover:text-blue-800 font-semibold py-2"
+            >
+              Esqueci minha senha
+            </button>
+            
             <button
               type="button"
               disabled={loading}
-              onClick={() => setEtapa("cadastro")}
-              style={{ textAlign: "center", width: "100%" }}
+              onClick={() => {
+                setEtapa("cadastro");
+                setSenha("");
+                setTextErroNome("");
+                setTextErroEmail("");
+                setTextErroSenha("");
+              }}
+              className="w-full text-blue-600 hover:text-blue-800 font-semibold py-2 mt-2"
             >
-              Cadastrar
+              Cadastrar nova conta
             </button>
-
-            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-              <p className="text-sm text-gray-600 mb-2">Usuários de teste:</p>
-              <p className="text-xs text-gray-500">admin@exemplo.com (Admin)</p>
-              <p className="text-xs text-gray-500">
-                joao@exemplo.com (Funcionário)
-              </p>
-              <p className="text-xs text-gray-500">
-                maria@exemplo.com (Usuário)
-              </p>
-            </div>
           </form>
         ) : etapa === "cadastro" ? (
-          <form onSubmit={handleEnviarEmail}>
-            <div className="mb-6">
-              <label className="block text-gray-700 font-semibold mb-2">Nome</label>
+          <form onSubmit={handleEnviarToken}>
+            <div className="mb-4">
+              <label className="block text-gray-700 font-semibold mb-2">
+                Nome
+              </label>
               <input
-                type="nome"
+                type="text"
                 value={nome}
                 onChange={(e) => setNome(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Seu nome"
+                placeholder="Seu nome completo"
                 required
                 disabled={loading}
               />
+              <span className={`text-sm mt-1 ${textErroNome.includes("✓") ? "text-green-600" : "text-red-600"}`}>
+                {textErroNome}
+              </span>
             </div>
-            <div className="mb-6">
-              <label className="block text-gray-700 font-semibold mb-2">Email</label>
+
+            <div className="mb-4">
+              <label className="block text-gray-700 font-semibold mb-2">
+                Email
+              </label>
               <input
                 type="email"
                 value={email}
@@ -160,24 +265,33 @@ export default function Login({ onLogin, onVoltar, showToast }) {
                 required
                 disabled={loading}
               />
+              <span className={`text-sm mt-1 ${textErroEmail.includes("✓") ? "text-green-600" : "text-red-600"}`}>
+                {textErroEmail}
+              </span>
             </div>
+
             <div className="mb-6">
-              <label className="block text-gray-700 font-semibold mb-2">Senha</label>
+              <label className="block text-gray-700 font-semibold mb-2">
+                Senha
+              </label>
               <input
                 type="password"
                 value={senha}
-                onChange={(e) => setsenha(e.target.value)}
+                onChange={(e) => setSenha(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Ssenha1234"
+                placeholder="Senha1234"
                 required
                 disabled={loading}
               />
+              <span className={`text-sm mt-1 ${textErroSenha.includes("✓") ? "text-green-600" : "text-red-600"}`}>
+                {textErroSenha}
+              </span>
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition duration-300 disabled:opacity-50"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition duration-300 disabled:opacity-50 mb-3"
             >
               {loading ? "Enviando..." : "Enviar Código"}
             </button>
@@ -186,23 +300,17 @@ export default function Login({ onLogin, onVoltar, showToast }) {
               type="button"
               onClick={() => {
                 setEtapa("login");
-                console.log(etapa);
+                setNome("");
+                setEmail("");
+                setSenha("");
+                setTextErroNome("");
+                setTextErroEmail("");
+                setTextErroSenha("");
               }}
-              style={{ textAlign: "center", width: "100%" }}
+              className="w-full text-blue-600 hover:text-blue-800 font-semibold py-2"
             >
-              Login
+              Já tenho conta (Login)
             </button>
-
-            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-              <p className="text-sm text-gray-600 mb-2">Usuários de teste:</p>
-              <p className="text-xs text-gray-500">admin@exemplo.com (Admin)</p>
-              <p className="text-xs text-gray-500">
-                joao@exemplo.com (Funcionário)
-              </p>
-              <p className="text-xs text-gray-500">
-                maria@exemplo.com (Usuário)
-              </p>
-            </div>
           </form>
         ) : (
           <form onSubmit={handleValidarCodigo}>
@@ -220,6 +328,9 @@ export default function Login({ onLogin, onVoltar, showToast }) {
                 required
                 disabled={loading}
               />
+              <p className="text-sm text-gray-500 mt-2 text-center">
+                Insira o código enviado para seu email
+              </p>
             </div>
 
             <button
@@ -227,15 +338,18 @@ export default function Login({ onLogin, onVoltar, showToast }) {
               disabled={loading}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition duration-300 disabled:opacity-50"
             >
-              {loading ? "Validando..." : "Confirmar"}
+              {loading ? "Validando..." : "Criar Conta"}
             </button>
 
             <button
               type="button"
-              onClick={() => setEtapa("login")}
+              onClick={() => {
+                setEtapa("cadastro");
+                setCodigo("");
+              }}
               className="w-full mt-3 text-gray-600 hover:text-gray-800 font-semibold py-2"
             >
-              Alterar e-mail
+              Voltar para cadastro
             </button>
           </form>
         )}

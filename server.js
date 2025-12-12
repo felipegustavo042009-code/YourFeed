@@ -7,12 +7,14 @@ const crypto = require('crypto');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const dotenv = require('dotenv')
 
+dotenv.config();
 const app = express();
 app.use(cors())
 app.use(express.json())
 
-const PORT = 3000;
+const PORT = 5000;
 
 // Configuração do multer para upload de imagens Pesquisar sistema depois(deeepseek)
 const storage = multer.diskStorage({
@@ -210,7 +212,7 @@ app.post('/LoginUsuario', async (req, res) => {
 
 app.post('/RegisterUsuarios-validarToken', async (req, res) => {
     try {
-        const { email, Senha, Nome, token } = req.query;
+        const { email, senha, nome, token } = req.query;
 
         if (!token) {
             return res.status(400).json({
@@ -218,14 +220,13 @@ app.post('/RegisterUsuarios-validarToken', async (req, res) => {
             });
         }
 
-        if (!email || !Senha || !Nome) {
+        if (!email || !senha || !nome) {
             return res.status(400).json('Não se pode criar usuarios sem nome, email ou senha')
         }
 
         const tokenDoc = await Token.findOne({
             email: email,
-            TokenEnviado: token,
-            TokenExpira: { $gt: new Date() }
+            TokenEnviado: token
         });
 
         if (!tokenDoc) {
@@ -239,10 +240,10 @@ app.post('/RegisterUsuarios-validarToken', async (req, res) => {
             return res.status(400).json('Email ja cadastrado')
         }
 
-        const hashSenha = await argon2.hash(Senha, { type: argon2.argon2id })
+        const hashSenha = await argon2.hash(senha, { type: argon2.argon2id })
 
         const novoUsuario = new Usuario({
-            Nome,
+            Nome: nome,
             Email: email,
             Senha: hashSenha
         })
@@ -331,35 +332,50 @@ app.post('/enviar-token', async (req, res) => {
             { upsert: true, new: true }
         );
 
+        // DEBUG: Verifique se as variáveis de ambiente estão carregadas
+        console.log('Email config:', process.env.EMAIL);
+        console.log('Senha config:', process.env.EMAIL_SENHA ? '***' : 'NÃO DEFINIDA');
+
         const transporte = nodemailer.createTransport({
-            host: "smtp.gmail.com",
-            port: 587,
-            secure: false,
+            service: 'gmail',
             auth: {
                 user: process.env.EMAIL,
                 pass: process.env.EMAIL_SENHA
             }
         });
 
-        await transporte.sendMail({
-            from: `"Sua App" <${process.env.EMAIL}>`,
+        // Teste a conexão
+        await transporte.verify();
+
+        const info = await transporte.sendMail({
+            from: `"Sistema de Reservas" <${process.env.EMAIL}>`,
             to: email,
             subject: "Seu código de verificação",
-            html: `<p>Seu código de verificação é: <b>${token}</b></p>
-                    <p>Este código expira em 15 minutos.</p>`
+            html: `<div style="font-family: Arial, sans-serif; padding: 20px;">
+                    <h2>Código de Verificação</h2>
+                    <p>Seu código de verificação é: <strong style="font-size: 24px;">${token}</strong></p>
+                    <p>Este código expira em 10 minutos.</p>
+                    <hr>
+                    <p style="color: #666; font-size: 12px;">Não responda a este email.</p>
+                   </div>`
         });
+
+        console.log('Email enviado:', info.messageId);
 
         res.status(200).json({
             success: true,
-            message: 'Token enviado com sucesso para o emaill'
+            message: 'Token enviado com sucesso para o email'
         });
 
     } catch (error) {
+        console.error('Erro detalhado ao enviar email:', error);
         res.status(500).json({
-            error: 'Erro interno do servidor'
+            error: 'Erro interno do servidor',
+            details: error.message
         });
     }
 });
+
 
 app.get('/ListarSala', async (req, res) => {
     try {
