@@ -63,15 +63,16 @@ export default function Home({ onEntrar, onVerSalas }) {
             
             <div className="text-center md:text-left">
               <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold leading-tight mb-4" style={{ color: brownMain }}>
-                Sistema de <br className="hidden sm:inline"/>
+                Gestão <br className="hidden sm:inline"/>
                 <span className="relative inline-block">
-                  <span className="z-10 relative">Reservas</span>
+                  <span className="z-10 relative">Caju Hub Pro</span>
                   <span className="absolute bottom-0 left-0 w-full h-2 md:h-3" style={{ backgroundColor: yellowCta, opacity: 0.6, transform: 'translateY(-2px)' }}></span>
+                  
                 </span>
               </h1>
               
               <p className="mt-6 text-xl max-w-lg mx-auto md:mx-0" style={{ color: graySecondary }}>
-                Gerencie salas, eventos e reservas de forma **simples e eficiente**, transformando a organização do seu espaço.
+                Gerencie salas, eventos e reservas de forma simples e eficiente, transformando a organização do seu espaço.
               </p>
               
               {/* Botões principais */}
@@ -114,7 +115,7 @@ export default function Home({ onEntrar, onVerSalas }) {
       <section className="relative z-20 -mt-20 md:-mt-32 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white p-8 md:p-12 rounded-3xl shadow-2xl shadow-gray-300/50 border border-gray-100">
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-12" style={{ color: brownDark }}>
-            Recursos que Impulsionam sua Organização
+            Recursos que Impulsionam a Organização
           </h2>
           
           <div className="grid md:grid-cols-3 gap-8">
@@ -131,7 +132,7 @@ export default function Home({ onEntrar, onVerSalas }) {
             <FeatureCard 
               icon="👥" 
               title="Controle de Acesso" 
-              description="Implemente um sistema robusto com diferentes níveis de permissão para usuários e administradores." 
+              description="Implemente um sistema robusto com diferentes níveis de permissão para usuários, funcionários e administradores." 
             />
           </div>
         </div>

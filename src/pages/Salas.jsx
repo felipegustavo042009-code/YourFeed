@@ -31,7 +31,7 @@ export default function Salas({ showToast }) {
 
   // Verifica permissões do usuário
   const { idLocal, tipoLocal } = useContext(GlobalContext);
-  const podeGerenciar = tipoLocal === 'adm'; // Só admin pode gerenciar
+  const podeGerenciar = tipoLocal;
 
   // Carrega salas ao iniciar
   useEffect(() => {
@@ -42,7 +42,7 @@ export default function Salas({ showToast }) {
   const carregarSalas = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/ListarSala');
+      const response = await fetch('http://192.168.100.58:5000/ListarSala');
       if (!response.ok) throw new Error('Erro ao carregar salas');
       
       const data = await response.json();
@@ -79,7 +79,7 @@ export default function Salas({ showToast }) {
         quantidadeMaxima: novaSala.quantidadeMaxima.toString()
       });
 
-      const response = await fetch(`/CriarSala?${queryParams}`, {
+      const response = await fetch(`http://192.168.100.58:5000/CriarSala?${queryParams}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -141,7 +141,7 @@ export default function Salas({ showToast }) {
         quantidadeMaxima: salaEditando.quantidadeMaxima.toString()
       });
 
-      const response = await fetch(`/AtualizarSala?${queryParams}`, {
+      const response = await fetch(`http://192.168.100.58:5000/AtualizarSala?${queryParams}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -183,7 +183,7 @@ export default function Salas({ showToast }) {
         idSala: idSala
       });
 
-      const response = await fetch(`/DeletarSala?${queryParams}`, {
+      const response = await fetch(`http://192.168.100.58:5000/DeletarSala?${queryParams}`, {
         method: 'DELETE'
       });
 
@@ -269,7 +269,7 @@ export default function Salas({ showToast }) {
           <h1 className="text-3xl md:text-4xl font-extrabold">
             Salas e Espaços
           </h1>
-          {podeGerenciar && (
+          {podeGerenciar && tipoLocal == '' && (
             <button
               onClick={() => { setModalAberto(true); resetarFormulario(); }}
               className="flex items-center gap-2 py-2 px-6 text-lg font-bold rounded-xl"

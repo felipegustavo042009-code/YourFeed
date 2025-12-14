@@ -22,7 +22,7 @@ export default function Login({ onLogin, onVoltar, showToast }) {
 
   // Regras de validação
   const regexNome = /^[A-Za-zÀ-ÖØ-öø-ÿ\s]{2,60}$/;
-  const regexEmail = /^[A-Za-z0-9._%+-]+@(gmail\.com|outlook\.com)$/;
+  const regexEmail = /^[A-Za-z0-9._%+-]+@(gmail\.com)$/;
   const regexSenha = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,50}$/;
 
   // Valida dados do cadastro
@@ -71,7 +71,7 @@ export default function Login({ onLogin, onVoltar, showToast }) {
 
     // Chama API para enviar token
     try {
-      const response = await fetch(`/enviar-token?email=${email}`, {
+      const response = await fetch(`http://192.168.100.58:5000/enviar-token?email=${email}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
@@ -106,7 +106,7 @@ export default function Login({ onLogin, onVoltar, showToast }) {
 
     // Chama API de login
     try {
-      const response = await fetch(`/LoginUsuario?Email=${email}&Senha=${senha}`, {
+      const response = await fetch(`http://192.168.100.58:5000/LoginUsuario?Email=${email}&Senha=${senha}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
@@ -138,7 +138,7 @@ export default function Login({ onLogin, onVoltar, showToast }) {
 
     // Chama API para validar código e criar conta
     try {
-      const response = await fetch(`/RegisterUsuarios-validarToken?email=${email}&senha=${senha}&nome=${nome}&token=${codigo}`, {
+      const response = await fetch(`http://192.168.100.58:5000/RegisterUsuarios-validarToken?email=${email}&senha=${senha}&nome=${nome}&token=${codigo}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });

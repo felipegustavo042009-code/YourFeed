@@ -49,7 +49,8 @@ const Reserva = mongoose.model('reserva', new mongoose.Schema({
     Data: Date, // Data e hora da reserva
     NomeEvento: { type: String, required: true }, // Nome do evento
     Quantidade: { type: Number, required: true, min: 1 }, // Número de pessoas
-    UsuarioId: String // ID do usuário que fez a reserva
+    UsuarioId: String, // ID do usuário que fez a reserva
+    Status: { type: String, required: true, enum: ['recusado', 'pendente', 'aceita'] }
 }));
 
 // 3. Token de verificação (para cadastro)
@@ -112,7 +113,7 @@ app.get('/ListenUsuarios', async (req, res) => {
             }))
         });
     } catch (error) {
-        return res.status(400).json('Não foi possível pegar os usuarios');
+        return res.status(500).json('Não foi possível pegar os usuarios');
     }
 });
 
@@ -141,7 +142,7 @@ app.post('/LoginUsuario', async (req, res) => {
             tipo: contaUsuario.Tipo.toString()
         });
     } catch (error) {
-        res.status(400).json('Erro ao entrar na conta do usuario');
+        res.status(500).json('Erro ao entrar na conta do usuario');
     }
 });
 
@@ -186,7 +187,7 @@ app.post('/RegisterUsuarios-validarToken', async (req, res) => {
         });
     } catch (error) {
         console.log('Erro ao criar usuario', error);
-        res.status(400).json('Erro ao cadastrar usuario');
+        res.status(500).json('Erro ao cadastrar usuario');
     }
 });
 
@@ -207,7 +208,7 @@ app.delete('/DeleteUsuarios', async (req, res) => {
         await Usuario.deleteOne({ id: idUsuario });
         return res.status(200).json('Dados do usuario apagados com sucesso');
     } catch (error) {
-        return res.status(400).json('Não foi possível apagar usuario');
+        return res.status(500).json('Não foi possível apagar usuario');
     }
 });
 
@@ -266,7 +267,7 @@ app.patch('/AtualizarUsuariosDados', async (req, res) => {
             return res.status(400).json('Nenhum dado fornecido para atualização');
         }
     } catch (error) {
-        return res.status(400).json('Não foi possível atualizar usuario');
+        return res.status(500).json('Não foi possível atualizar usuario');
     }
 });
 
@@ -525,12 +526,21 @@ app.get('/ListarReserva', async (req, res) => {
             return res.status(404).json({ mensagem: "Usuário não encontrado" });
         }
 
-        // Busca reservas
+        // Busca reservas dependendo do Tipo e id
         let reservas;
-        if (idReserva) {
-            reservas = await Reserva.find({ id: idReserva }); // Reserva específica
+        if (usuarioValido.Tipo == 'adm') {
+            reservas = await Reserva.find({}); // Adm vê todas
         } else {
-            reservas = await Reserva.find(); // Todas as reservas
+            const suasReservas = await Reserva.find({
+                UsuarioId: idUsuario,
+                Status: { $in: ['pendente', 'aceita'] }
+            });
+            const outrasReservasAceitas = await Reserva.find({
+                UsuarioId: { $ne: idUsuario }, 
+                Status: 'aceita'
+            });
+
+            reservas = [...suasReservas, ...outrasReservasAceitas];
         }
 
         // Adiciona informações da sala e do usuário
@@ -547,7 +557,8 @@ app.get('/ListarReserva', async (req, res) => {
                 quantidade: reserva.Quantidade,
                 usuarioId: reserva.UsuarioId,
                 usuarioNome: usuario ? usuario.Nome : 'Usuário não encontrado',
-                usuarioTipo: usuario ? usuario.Tipo : ''
+                usuarioTipo: usuario ? usuario.Tipo : '',
+                status: reserva.Status,
             };
         }));
 
@@ -568,6 +579,8 @@ app.post('/CriarReserva', async (req, res) => {
     try {
         const { idUsuario, idOcupacao, data, quantidade, nomeEvento } = req.query;
 
+        let statusReserva = 'aceita';
+
         // Valida dados obrigatórios
         if (!idUsuario || !idOcupacao || !data || !quantidade || !nomeEvento) {
             return res.status(400).json({ mensagem: "Dados incompletos" });
@@ -579,10 +592,7 @@ app.post('/CriarReserva', async (req, res) => {
             return res.status(404).json({ mensagem: "Usuário não encontrado" });
         }
 
-        // Verifica permissão: apenas admin e funcionários podem reservar
-        if (usuarioExistente.Tipo !== 'adm' && usuarioExistente.Tipo !== 'funcionario') {
-            return res.status(403).json({ mensagem: "Somente administradores e funcionários podem fazer reservas" });
-        }
+
 
         // Verifica se sala existe
         const ocupacaoExistente = await Ocupacao.findOne({ id: idOcupacao });
@@ -637,13 +647,19 @@ app.post('/CriarReserva', async (req, res) => {
             });
         }
 
+        // Verifica permissão: apenas admin e funcionários podem reservar sem pendencia
+        if (usuarioExistente.Tipo !== 'adm' && usuarioExistente.Tipo !== 'funcionario') {
+            statusReserva = 'pendente';
+        }
+
         // Cria reserva
         const novaReserva = new Reserva({
             OcupacaoId: idOcupacao,
             Data: dataReserva,
             NomeEvento: nomeEvento.trim(),
             Quantidade: parseInt(quantidade),
-            UsuarioId: idUsuario
+            UsuarioId: idUsuario,
+            Status: statusReserva
         });
 
         await novaReserva.save();
@@ -680,6 +696,10 @@ app.delete('/DeletarReserva', async (req, res) => {
         if (!usuarioValido) {
             return res.status(404).json({ mensagem: "Usuário não encontrado" });
         }
+        if (usuarioValido.Tipo != 'adm') {
+            return res.status(404).json({ mensagem: "Somente os ADM podem deletar Usuario" });
+        }
+
 
         // Verifica reserva
         const reservaExistente = await Reserva.findOne({ id: idReserva });
@@ -687,8 +707,8 @@ app.delete('/DeletarReserva', async (req, res) => {
             return res.status(404).json({ mensagem: "Reserva não encontrada" });
         }
 
-        // Permissões: admin ou funcionário pode deletar qualquer, usuário só a própria
-        if (usuarioValido.Tipo !== 'adm' && usuarioValido.Tipo !== 'funcionario' && reservaExistente.UsuarioId !== idUsuario) {
+        // Permissões: admin pode deletar qualquer, o funcionário e usuário só a própria
+        if (usuarioValido.Tipo !== 'adm' && reservaExistente.UsuarioId !== idUsuario) {
             return res.status(403).json({ mensagem: "Não tem permissão para deletar esta reserva" });
         }
 
@@ -722,8 +742,8 @@ app.patch('/AtualizarReserva', async (req, res) => {
             return res.status(404).json({ mensagem: "Reserva não encontrada" });
         }
 
-        // Permissões: admin ou funcionário pode editar qualquer, usuário só a própria
-        if (usuarioValido.Tipo !== 'adm' && usuarioValido.Tipo !== 'funcionario' && reservaExistente.UsuarioId !== idUsuario) {
+        // Permissões: admin pode editar, mas usuário e funcionario só a própria
+        if (usuarioValido.Tipo !== 'adm' && reservaExistente.UsuarioId !== idUsuario) {
             return res.status(403).json({ mensagem: "Usuário não tem permissão para atualizar esta reserva" });
         }
 
@@ -780,6 +800,48 @@ app.patch('/AtualizarReserva', async (req, res) => {
         return res.status(500).json({ mensagem: "Erro ao atualizar reserva", erro: error.message });
     }
 });
+
+// PATCH /AtualizarReserva - Atualiza status da reserva dos usuarios
+app.patch('/AtualizarTipo', async (req, res) => {
+    try {
+        const { idAdm, idReserva, novoStatus } = req.query;
+
+        //Ver se tem dados de id do usuario e reserva
+        if (!idAdm || !idReserva) {
+            return res.status(400).json({ mensagem: 'É preciso do seu id e da reserva para atualizar' })
+        }
+
+        //Ver se tem dados do novo status
+        if (novoStatus == '') {
+            return res.status(400).json({ mensagem: 'É preciso de um novo status para atualizar' })
+        }
+
+        //Validar se o usuario é ADM
+        const validarAdm = await Usuario.findOne({ id: idAdm, Tipo: 'adm' })
+        if (!validarAdm) {
+            return res.status(400).json({ mensagem: 'Somente adm podem mudar o status da reserva' })
+        }
+
+        //Validar se reserva existe
+        const validarReserva = await Reserva.findOne({ id: idReserva })
+        if (!validarReserva) {
+            return res.status(400).json({ mensagem: 'Erro reserva não encontrada' });
+        }
+
+        //Verificar se vai para recusado(apaga) ou aceita(atualiza)
+        if (novoStatus == 'recusado') {
+            await Reserva.deleteOne({ id: idReserva })
+            res.status(201).json({ mensagem: 'Reserva recusada e excluida' })
+        }
+        else {
+            await Reserva.updateOne({ id: idReserva }, { Status: novoStatus })
+            res.status(201).json({ mensagem: 'Atualização no status da atividade realizada com sucesso' })
+        }
+
+    } catch (error) {
+        res.status(500).json({ mensagem: 'Erro ao se conectar com servidor' })
+    }
+})
 
 
 

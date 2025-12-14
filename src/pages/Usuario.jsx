@@ -36,7 +36,7 @@ export default function Usuario({ usuario, onLogout, showToast }) {
     }
 
     try {
-      const resposta = await fetch(`/ListenUsuarios?idUsuario=${idLocal}`, {
+      const resposta = await fetch(`http://192.168.100.58:5000/ListenUsuarios?idUsuario=${idLocal}`, {
         method: "GET",
         headers: { "Content-Type": "application/json" },
       });
@@ -63,7 +63,7 @@ export default function Usuario({ usuario, onLogout, showToast }) {
 
     try {
       const resposta = await fetch(
-        `/AtualizarUsuariosTipo?idUsuario=${idUsuario}&tipoNovo=${novoTipo}&idAdm=${idLocal}`,
+        `http://192.168.100.58:5000/AtualizarUsuariosTipo?idUsuario=${idUsuario}&tipoNovo=${novoTipo}&idAdm=${idLocal}`,
         {
           method: "PATCH",
         }
@@ -102,7 +102,7 @@ export default function Usuario({ usuario, onLogout, showToast }) {
 
     try {
       const resposta = await fetch(
-        `/DeleteUsuarios?idUsuario=${idUsuario}&idAdm=${idLocal}`,
+        `http://192.168.100.58:5000/DeleteUsuarios?idUsuario=${idUsuario}&idAdm=${idLocal}`,
         {
           method: "DELETE",
         }
@@ -145,7 +145,7 @@ export default function Usuario({ usuario, onLogout, showToast }) {
 
     try {
       const resposta = await fetch(
-        `/AtualizarUsuariosDados?idUsuario=${idLocal}&novaSenha=${novaSenha}&novoNome=${novoNome}`,
+        `http://192.168.100.58:5000/AtualizarUsuariosDados?idUsuario=${idLocal}&novaSenha=${novaSenha}&novoNome=${novoNome}`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
