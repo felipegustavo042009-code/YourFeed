@@ -221,6 +221,14 @@ export default function Login({ onLogin, onVoltar, showToast }) {
                   <p className="text-gray-400 text-sm">Equipe dedicada para ajudá-lo sempre</p>
                 </div>
               </div>
+              
+              <div className="flex items-start gap-3">
+                <div>
+                  <p className="text-white font-semibold">Adm Padrão</p>
+                  <p className="text-gray-400 text-sm">Email:adm@gmail.com / senha: Adm123</p>
+                </div>
+              </div>
+              
             </div>
           </div>
 
