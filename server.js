@@ -13,10 +13,6 @@ dotenv.config();
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// arquivos estáticos (React build)
-app.use(express.static(path.join(__dirname, "build")));
 
 const PORT = 5000;
 
@@ -72,7 +68,7 @@ const Ocupacao = mongoose.model('ocupacao', new mongoose.Schema({
     id: { type: String, unique: true, default: () => new mongoose.Types.ObjectId().toString() },
     Nome: { type: String, required: true }, // Nome da sala
     Sobre: String, // Descrição
-    Categoria: { type: String, enum: ['esporte', 'palestra', 'sala'], required: true },
+    Categoria: { type: String, enum: ['esporte', 'palestra', 'sala', 'reuniao'], required: true },
     Imagem: { type: String, default: '' }, // Nome do arquivo da imagem
     QuantidadeMaxima: { type: Number, required: true, min: 1 } // Capacidade
 }, { timestamps: true }));
@@ -820,5 +816,4 @@ app.patch('/AtualizarReserva', async (req, res) => {
 // INICIA SERVIDOR 
 app.listen(PORT, () => {
     console.log(`Servidor rodando com sucesso na porta ${PORT}`);
-
 });

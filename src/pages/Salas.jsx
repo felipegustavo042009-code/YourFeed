@@ -391,6 +391,7 @@ export default function Salas({ showToast }) {
                   <option value="sala">Sala</option>
                   <option value="esporte">Esporte</option>
                   <option value="palestra">Palestra</option>
+                  <option value="reuniao">Reunião</option>
                 </select>
               </div>
               
