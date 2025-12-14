@@ -71,7 +71,7 @@ export default function Login({ onLogin, onVoltar, showToast }) {
 
     // Chama API para enviar token
     try {
-      const response = await fetch(`http://192.168.100.58:5000/enviar-token?email=${email}`, {
+      const response = await fetch(`http:///enviar-token?email=${email}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
@@ -106,7 +106,7 @@ export default function Login({ onLogin, onVoltar, showToast }) {
 
     // Chama API de login
     try {
-      const response = await fetch(`http://192.168.100.58:5000/LoginUsuario?Email=${email}&Senha=${senha}`, {
+      const response = await fetch(`http:///LoginUsuario?Email=${email}&Senha=${senha}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
@@ -138,7 +138,7 @@ export default function Login({ onLogin, onVoltar, showToast }) {
 
     // Chama API para validar código e criar conta
     try {
-      const response = await fetch(`http://192.168.100.58:5000/RegisterUsuarios-validarToken?email=${email}&senha=${senha}&nome=${nome}&token=${codigo}`, {
+      const response = await fetch(`http:///RegisterUsuarios-validarToken?email=${email}&senha=${senha}&nome=${nome}&token=${codigo}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });

@@ -43,7 +43,7 @@ export default function Salas({ showToast }) {
   const carregarSalas = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://192.168.100.58:5000/ListarSala');
+      const response = await fetch('http:///ListarSala');
       if (!response.ok) throw new Error('Erro ao carregar salas');
       
       const data = await response.json();
@@ -80,7 +80,7 @@ export default function Salas({ showToast }) {
         quantidadeMaxima: novaSala.quantidadeMaxima.toString()
       });
 
-      const response = await fetch(`http://192.168.100.58:5000/CriarSala?${queryParams}`, {
+      const response = await fetch(`http:///CriarSala?${queryParams}`, {
         method: 'POST',
         body: formData
       });
@@ -140,7 +140,7 @@ export default function Salas({ showToast }) {
         quantidadeMaxima: salaEditando.quantidadeMaxima.toString()
       });
 
-      const response = await fetch(`http://192.168.100.58:5000/AtualizarSala?${queryParams}`, {
+      const response = await fetch(`http:///AtualizarSala?${queryParams}`, {
         method: 'PATCH',
         body: formData
       });
@@ -179,7 +179,7 @@ export default function Salas({ showToast }) {
         idSala: idSala
       });
 
-      const response = await fetch(`http://192.168.100.58:5000/DeletarSala?${queryParams}`, {
+      const response = await fetch(`http:///DeletarSala?${queryParams}`, {
         method: 'DELETE'
       });
 
@@ -239,7 +239,7 @@ export default function Salas({ showToast }) {
       if (sala.imagem.startsWith('http')) {
         return sala.imagem;
       }
-      return `http://192.168.100.58:5000${sala.imagem}`; // URL completa
+      return `http://${sala.imagem}`; // URL completa
     }
     return null; // Sem imagem
   };
