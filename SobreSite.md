@@ -305,3 +305,14 @@ REACT_APP_API_URL=http://localhost:5000
 *   **Última Atualização**: Outubro 2024
 *   **Estilo**: Projeto Educacional
 *   **Status**: Desenvolvimento Ativo
+
+## 🔑 Usuário Padrão de Teste (Administrador)
+
+Para fins de teste e acesso administrativo ao sistema, utilize as seguintes credenciais:
+
+| Campo | Valor |
+| :--- | :--- |
+| **Nome** | Adm |
+| **Email** | adm@gmail.com |
+| **Senha** | Adm123 |
+| **Tipo** | Administrador |
