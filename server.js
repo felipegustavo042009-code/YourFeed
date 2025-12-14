@@ -13,6 +13,10 @@ dotenv.config();
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// arquivos estáticos (React build)
+app.use(express.static(path.join(__dirname, "build")));
 
 const PORT = 5000;
 
@@ -816,4 +820,5 @@ app.patch('/AtualizarReserva', async (req, res) => {
 // INICIA SERVIDOR 
 app.listen(PORT, () => {
     console.log(`Servidor rodando com sucesso na porta ${PORT}`);
+
 });
