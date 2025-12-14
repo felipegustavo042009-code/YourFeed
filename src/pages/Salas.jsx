@@ -42,7 +42,7 @@ export default function Salas({ showToast }) {
   const carregarSalas = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://192.168.100.58:5000/ListarSala');
+      const response = await fetch('/ListarSala');
       if (!response.ok) throw new Error('Erro ao carregar salas');
       
       const data = await response.json();
@@ -79,7 +79,7 @@ export default function Salas({ showToast }) {
         quantidadeMaxima: novaSala.quantidadeMaxima.toString()
       });
 
-      const response = await fetch(`http://192.168.100.58:5000/CriarSala?${queryParams}`, {
+      const response = await fetch(`/CriarSala?${queryParams}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -141,7 +141,7 @@ export default function Salas({ showToast }) {
         quantidadeMaxima: salaEditando.quantidadeMaxima.toString()
       });
 
-      const response = await fetch(`http://192.168.100.58:5000/AtualizarSala?${queryParams}`, {
+      const response = await fetch(`/AtualizarSala?${queryParams}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -183,7 +183,7 @@ export default function Salas({ showToast }) {
         idSala: idSala
       });
 
-      const response = await fetch(`http://192.168.100.58:5000/DeletarSala?${queryParams}`, {
+      const response = await fetch(`/DeletarSala?${queryParams}`, {
         method: 'DELETE'
       });
 
