@@ -485,7 +485,10 @@ export default function Login({ onLogin, onVoltar, showToast }) {
               {/* Rodapé */}
               <div className="mt-8 pt-6 border-t border-gray-200">
                 <p className="text-xs text-[#6B7280] text-center">
-                  Ao continuar, você concorda com nossos Termos de Serviço e Política de Privacidade
+                  Adm padrão: Email(adm@gmail.com) Senha(Adm123)
+                </p>
+                <p className="text-xs text-[#6B7280] text-center">
+                  Ao continuar, concorda com nossos Termos de Serviço e Política de Privacidade
                 </p>
               </div>
             </div>
