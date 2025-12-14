@@ -12,46 +12,12 @@ const dotenv = require('dotenv');
 dotenv.config();
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, "build")));
 
 const PORT = 5000;
-
-// Salva imagens na pasta 'uploads/'
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        const uploadPath = 'uploads/';
-        if (!fs.existsSync(uploadPath)) {
-            fs.mkdirSync(uploadPath, { recursive: true });
-        }
-        cb(null, uploadPath); // Pasta onde as imagens vão
-    },
-    filename: function (req, file, cb) {
-        // Gera nome único: 'imagem-123456789.jpg'
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const ext = path.extname(file.originalname); // Pega extensão (.jpg, .png)
-        cb(null, 'imagem-' + uniqueSuffix + ext);
-    }
-});
-
-// Configura o upload (limite 5MB, apenas imagens)
-const upload = multer({
-    storage: storage,
-    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB máximo
-    fileFilter: function (req, file, cb) {
-        // Aceita apenas: jpeg, jpg, png, gif, webp
-        const filetypes = /jpeg|jpg|png|gif|webp/;
-        const mimetype = filetypes.test(file.mimetype); // Tipo do arquivo
-        const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-
-        if (mimetype && extname) {
-            return cb(null, true); // Aceita arquivo
-        }
-        cb(new Error('Apenas imagens são permitidas!')); // Rejeita
-    }
-});
 
 // Permite acessar imagens via URL: http://localhost:5000/uploads/nome-da-imagem.jpg
 app.use('/uploads', express.static('uploads'));
@@ -72,7 +38,7 @@ const Ocupacao = mongoose.model('ocupacao', new mongoose.Schema({
     Nome: { type: String, required: true }, // Nome da sala
     Sobre: String, // Descrição
     Categoria: { type: String, enum: ['esporte', 'palestra', 'sala', 'reuniao'], required: true },
-    Imagem: { type: String, default: '' }, // Nome do arquivo da imagem
+    Imagem: { type: String, default: '' }, // Base64 da imagem ou caminho
     QuantidadeMaxima: { type: Number, required: true, min: 1 } // Capacidade
 }, { timestamps: true }));
 
@@ -83,7 +49,8 @@ const Reserva = mongoose.model('reserva', new mongoose.Schema({
     Data: Date, // Data e hora da reserva
     NomeEvento: { type: String, required: true }, // Nome do evento
     Quantidade: { type: Number, required: true, min: 1 }, // Número de pessoas
-    UsuarioId: String // ID do usuário que fez a reserva
+    UsuarioId: String, // ID do usuário que fez a reserva
+    Status: { type: String, required: true, enum: ['recusado', 'pendente', 'aceita'] }
 }));
 
 // 3. Token de verificação (para cadastro)
@@ -109,7 +76,17 @@ const Usuario = mongoose.model('usuario', new mongoose.Schema({
     Tipo: { type: String, enum: ['adm', 'funcionario', 'usuario'], default: 'usuario', required: true }
 }));
 
+// Função para processar imagem Base64
+function processarImagemBase64(imagemBase64) {
+    if (!imagemBase64) return null;
 
+    // Verifica se é uma string Base64 válida
+    if (imagemBase64.startsWith('data:image/')) {
+        return imagemBase64; // Retorna o Base64 completo
+    }
+
+    return imagemBase64;
+}
 
 // Rotas
 
@@ -136,7 +113,7 @@ app.get('/ListenUsuarios', async (req, res) => {
             }))
         });
     } catch (error) {
-        return res.status(400).json('Não foi possível pegar os usuarios');
+        return res.status(500).json('Não foi possível pegar os usuarios');
     }
 });
 
@@ -165,7 +142,7 @@ app.post('/LoginUsuario', async (req, res) => {
             tipo: contaUsuario.Tipo.toString()
         });
     } catch (error) {
-        res.status(400).json('Erro ao entrar na conta do usuario');
+        res.status(500).json('Erro ao entrar na conta do usuario');
     }
 });
 
@@ -210,7 +187,7 @@ app.post('/RegisterUsuarios-validarToken', async (req, res) => {
         });
     } catch (error) {
         console.log('Erro ao criar usuario', error);
-        res.status(400).json('Erro ao cadastrar usuario');
+        res.status(500).json('Erro ao cadastrar usuario');
     }
 });
 
@@ -231,7 +208,7 @@ app.delete('/DeleteUsuarios', async (req, res) => {
         await Usuario.deleteOne({ id: idUsuario });
         return res.status(200).json('Dados do usuario apagados com sucesso');
     } catch (error) {
-        return res.status(400).json('Não foi possível apagar usuario');
+        return res.status(500).json('Não foi possível apagar usuario');
     }
 });
 
@@ -290,7 +267,7 @@ app.patch('/AtualizarUsuariosDados', async (req, res) => {
             return res.status(400).json('Nenhum dado fornecido para atualização');
         }
     } catch (error) {
-        return res.status(400).json('Não foi possível atualizar usuario');
+        return res.status(500).json('Não foi possível atualizar usuario');
     }
 });
 
@@ -378,7 +355,7 @@ app.get('/ListarSala', async (req, res) => {
             nome: sala.Nome,
             sobre: sala.Sobre,
             categoria: sala.Categoria,
-            imagem: sala.Imagem ? `/uploads/${path.basename(sala.Imagem)}` : null,
+            imagem: sala.Imagem,
             quantidadeMaxima: sala.QuantidadeMaxima
         }));
 
@@ -394,29 +371,31 @@ app.get('/ListarSala', async (req, res) => {
 });
 
 // POST /CriarSala - Cria nova sala (somente admin)
-app.post('/CriarSala', upload.single('imagem'), async (req, res) => {
+app.post('/CriarSala', async (req, res) => {
     try {
         const { idUsuarios, nome, sobre, tipo, quantidadeMaxima } = req.query;
+        const { imagemBase64 } = req.body;
 
         // Valida dados obrigatórios
         if (!nome || !tipo || !quantidadeMaxima) {
-            if (req.file) fs.unlinkSync(req.file.path); // Remove imagem se houver erro
             return res.status(400).json({ mensagem: 'Nome, tipo e quantidade máxima são obrigatórios' });
         }
 
         // Verifica se usuário é admin
         const validarTipo = await Usuario.findOne({ id: idUsuarios, Tipo: 'adm' });
         if (!validarTipo) {
-            if (req.file) fs.unlinkSync(req.file.path);
             return res.status(403).json({ mensagem: 'Usuário precisa ser administrador' });
         }
+
+        // Processa imagem Base64
+        const imagemProcessada = processarImagemBase64(imagemBase64);
 
         // Cria nova sala
         const novaSala = new Ocupacao({
             Nome: nome,
             Sobre: sobre || '',
             Categoria: tipo,
-            Imagem: req.file ? req.file.filename : '', // Nome do arquivo
+            Imagem: imagemProcessada || '', // Base64 da imagem
             QuantidadeMaxima: parseInt(quantidadeMaxima)
         });
 
@@ -429,13 +408,12 @@ app.post('/CriarSala', upload.single('imagem'), async (req, res) => {
                 nome: novaSala.Nome,
                 sobre: novaSala.Sobre,
                 categoria: novaSala.Categoria,
-                imagem: req.file ? `/uploads/${req.file.filename}` : '',
+                imagem: novaSala.Imagem,
                 quantidadeMaxima: novaSala.QuantidadeMaxima
             }
         });
 
     } catch (error) {
-        if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
         console.error(error);
         return res.status(500).json({ mensagem: "Erro ao criar sala", erro: error.message });
     }
@@ -462,12 +440,6 @@ app.delete('/DeletarSala', async (req, res) => {
             return res.status(404).json({ mensagem: "Sala não encontrada" });
         }
 
-        // Remove imagem associada
-        if (salaExistente.Imagem) {
-            const imagePath = path.join('uploads', salaExistente.Imagem);
-            if (fs.existsSync(imagePath)) fs.unlinkSync(imagePath);
-        }
-
         await Ocupacao.deleteOne({ id: idSala });
         return res.status(200).json({ mensagem: "Sala deletada com sucesso" });
 
@@ -478,26 +450,24 @@ app.delete('/DeletarSala', async (req, res) => {
 });
 
 // PATCH /AtualizarSala - Atualiza dados da sala (somente admin)
-app.patch('/AtualizarSala', upload.single('imagem'), async (req, res) => {
+app.patch('/AtualizarSala', async (req, res) => {
     try {
         const { idUsuario, idSala, nome, sobre, quantidadeMaxima } = req.query;
+        const { imagemBase64 } = req.body;
 
         // Verifica permissão
         const validarUsuario = await Usuario.findOne({ id: idUsuario, Tipo: 'adm' });
         if (!validarUsuario) {
-            if (req.file) fs.unlinkSync(req.file.path);
             return res.status(403).json({ mensagem: "Usuário não tem permissão para atualizar sala" });
         }
 
         if (!idSala) {
-            if (req.file) fs.unlinkSync(req.file.path);
             return res.status(400).json({ mensagem: "ID da sala é obrigatório" });
         }
 
         // Busca sala
         const salaExistente = await Ocupacao.findOne({ id: idSala });
         if (!salaExistente) {
-            if (req.file) fs.unlinkSync(req.file.path);
             return res.status(404).json({ mensagem: "Sala não encontrada" });
         }
 
@@ -507,13 +477,12 @@ app.patch('/AtualizarSala', upload.single('imagem'), async (req, res) => {
         if (sobre !== undefined) dadosAtualizacao.Sobre = sobre;
         if (quantidadeMaxima !== undefined) dadosAtualizacao.QuantidadeMaxima = parseInt(quantidadeMaxima);
 
-        // Se nova imagem foi enviada, remove a antiga
-        if (req.file) {
-            if (salaExistente.Imagem) {
-                const oldImagePath = path.join('uploads', salaExistente.Imagem);
-                if (fs.existsSync(oldImagePath)) fs.unlinkSync(oldImagePath);
+        // Se nova imagem foi enviada
+        if (imagemBase64) {
+            const imagemProcessada = processarImagemBase64(imagemBase64);
+            if (imagemProcessada) {
+                dadosAtualizacao.Imagem = imagemProcessada;
             }
-            dadosAtualizacao.Imagem = req.file.filename;
         }
 
         // Atualiza no banco
@@ -527,13 +496,12 @@ app.patch('/AtualizarSala', upload.single('imagem'), async (req, res) => {
                 nome: salaAtualizada.Nome,
                 sobre: salaAtualizada.Sobre,
                 categoria: salaAtualizada.Categoria,
-                imagem: salaAtualizada.Imagem ? `/uploads/${salaAtualizada.Imagem}` : '',
+                imagem: salaAtualizada.Imagem,
                 quantidadeMaxima: salaAtualizada.QuantidadeMaxima
             }
         });
 
     } catch (error) {
-        if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
         console.error(error);
         return res.status(500).json({ mensagem: "Erro ao atualizar sala", erro: error.message });
     }
@@ -558,12 +526,21 @@ app.get('/ListarReserva', async (req, res) => {
             return res.status(404).json({ mensagem: "Usuário não encontrado" });
         }
 
-        // Busca reservas
+        // Busca reservas dependendo do Tipo e id
         let reservas;
-        if (idReserva) {
-            reservas = await Reserva.find({ id: idReserva }); // Reserva específica
+        if (usuarioValido.Tipo == 'adm') {
+            reservas = await Reserva.find({}); // Adm vê todas
         } else {
-            reservas = await Reserva.find(); // Todas as reservas
+            const suasReservas = await Reserva.find({
+                UsuarioId: idUsuario,
+                Status: { $in: ['pendente', 'aceita'] }
+            });
+            const outrasReservasAceitas = await Reserva.find({
+                UsuarioId: { $ne: idUsuario }, 
+                Status: 'aceita'
+            });
+
+            reservas = [...suasReservas, ...outrasReservasAceitas];
         }
 
         // Adiciona informações da sala e do usuário
@@ -580,7 +557,8 @@ app.get('/ListarReserva', async (req, res) => {
                 quantidade: reserva.Quantidade,
                 usuarioId: reserva.UsuarioId,
                 usuarioNome: usuario ? usuario.Nome : 'Usuário não encontrado',
-                usuarioTipo: usuario ? usuario.Tipo : ''
+                usuarioTipo: usuario ? usuario.Tipo : '',
+                status: reserva.Status,
             };
         }));
 
@@ -601,6 +579,8 @@ app.post('/CriarReserva', async (req, res) => {
     try {
         const { idUsuario, idOcupacao, data, quantidade, nomeEvento } = req.query;
 
+        let statusReserva = 'aceita';
+
         // Valida dados obrigatórios
         if (!idUsuario || !idOcupacao || !data || !quantidade || !nomeEvento) {
             return res.status(400).json({ mensagem: "Dados incompletos" });
@@ -612,10 +592,7 @@ app.post('/CriarReserva', async (req, res) => {
             return res.status(404).json({ mensagem: "Usuário não encontrado" });
         }
 
-        // Verifica permissão: apenas admin e funcionários podem reservar
-        if (usuarioExistente.Tipo !== 'adm' && usuarioExistente.Tipo !== 'funcionario') {
-            return res.status(403).json({ mensagem: "Somente administradores e funcionários podem fazer reservas" });
-        }
+
 
         // Verifica se sala existe
         const ocupacaoExistente = await Ocupacao.findOne({ id: idOcupacao });
@@ -670,13 +647,19 @@ app.post('/CriarReserva', async (req, res) => {
             });
         }
 
+        // Verifica permissão: apenas admin e funcionários podem reservar sem pendencia
+        if (usuarioExistente.Tipo !== 'adm' && usuarioExistente.Tipo !== 'funcionario') {
+            statusReserva = 'pendente';
+        }
+
         // Cria reserva
         const novaReserva = new Reserva({
             OcupacaoId: idOcupacao,
             Data: dataReserva,
             NomeEvento: nomeEvento.trim(),
             Quantidade: parseInt(quantidade),
-            UsuarioId: idUsuario
+            UsuarioId: idUsuario,
+            Status: statusReserva
         });
 
         await novaReserva.save();
@@ -713,6 +696,10 @@ app.delete('/DeletarReserva', async (req, res) => {
         if (!usuarioValido) {
             return res.status(404).json({ mensagem: "Usuário não encontrado" });
         }
+        if (usuarioValido.Tipo != 'adm') {
+            return res.status(404).json({ mensagem: "Somente os ADM podem deletar Usuario" });
+        }
+
 
         // Verifica reserva
         const reservaExistente = await Reserva.findOne({ id: idReserva });
@@ -720,8 +707,8 @@ app.delete('/DeletarReserva', async (req, res) => {
             return res.status(404).json({ mensagem: "Reserva não encontrada" });
         }
 
-        // Permissões: admin ou funcionário pode deletar qualquer, usuário só a própria
-        if (usuarioValido.Tipo !== 'adm' && usuarioValido.Tipo !== 'funcionario' && reservaExistente.UsuarioId !== idUsuario) {
+        // Permissões: admin pode deletar qualquer, o funcionário e usuário só a própria
+        if (usuarioValido.Tipo !== 'adm' && reservaExistente.UsuarioId !== idUsuario) {
             return res.status(403).json({ mensagem: "Não tem permissão para deletar esta reserva" });
         }
 
@@ -755,8 +742,8 @@ app.patch('/AtualizarReserva', async (req, res) => {
             return res.status(404).json({ mensagem: "Reserva não encontrada" });
         }
 
-        // Permissões: admin ou funcionário pode editar qualquer, usuário só a própria
-        if (usuarioValido.Tipo !== 'adm' && usuarioValido.Tipo !== 'funcionario' && reservaExistente.UsuarioId !== idUsuario) {
+        // Permissões: admin pode editar, mas usuário e funcionario só a própria
+        if (usuarioValido.Tipo !== 'adm' && reservaExistente.UsuarioId !== idUsuario) {
             return res.status(403).json({ mensagem: "Usuário não tem permissão para atualizar esta reserva" });
         }
 
@@ -814,6 +801,48 @@ app.patch('/AtualizarReserva', async (req, res) => {
     }
 });
 
+// PATCH /AtualizarReserva - Atualiza status da reserva dos usuarios
+app.patch('/AtualizarTipo', async (req, res) => {
+    try {
+        const { idAdm, idReserva, novoStatus } = req.query;
+
+        //Ver se tem dados de id do usuario e reserva
+        if (!idAdm || !idReserva) {
+            return res.status(400).json({ mensagem: 'É preciso do seu id e da reserva para atualizar' })
+        }
+
+        //Ver se tem dados do novo status
+        if (novoStatus == '') {
+            return res.status(400).json({ mensagem: 'É preciso de um novo status para atualizar' })
+        }
+
+        //Validar se o usuario é ADM
+        const validarAdm = await Usuario.findOne({ id: idAdm, Tipo: 'adm' })
+        if (!validarAdm) {
+            return res.status(400).json({ mensagem: 'Somente adm podem mudar o status da reserva' })
+        }
+
+        //Validar se reserva existe
+        const validarReserva = await Reserva.findOne({ id: idReserva })
+        if (!validarReserva) {
+            return res.status(400).json({ mensagem: 'Erro reserva não encontrada' });
+        }
+
+        //Verificar se vai para recusado(apaga) ou aceita(atualiza)
+        if (novoStatus == 'recusado') {
+            await Reserva.deleteOne({ id: idReserva })
+            res.status(201).json({ mensagem: 'Reserva recusada e excluida' })
+        }
+        else {
+            await Reserva.updateOne({ id: idReserva }, { Status: novoStatus })
+            res.status(201).json({ mensagem: 'Atualização no status da atividade realizada com sucesso' })
+        }
+
+    } catch (error) {
+        res.status(500).json({ mensagem: 'Erro ao se conectar com servidor' })
+    }
+})
+
 
 
 // INICIA SERVIDOR 
@@ -821,4 +850,3 @@ app.listen(PORT, () => {
     console.log(`Servidor rodando com sucesso na porta ${PORT}`);
 
 });
-

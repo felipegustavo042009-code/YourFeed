@@ -1,6 +1,7 @@
 import { useContext } from 'react';
 import { generateAvatar } from '../utils/avatar';
 import { GlobalContext } from '../variaveisGlobais';
+import logo from '../img/logoOrg.png';
 
 // Componente de navegação superior
 export default function Navbar({ usuario, abaAtiva, onMudarAba }) {
@@ -23,8 +24,9 @@ export default function Navbar({ usuario, abaAtiva, onMudarAba }) {
           
           {/* Lado esquerdo: Logo e abas */}
           <div className="flex items-center gap-8">
-            <div className="text-xl font-bold text-stone-800">
-              Sistema de Reservas
+            <div className="text-xl font-bold text-stone-800 flex items-center justify-center">
+              <img className='w-10 h-10' src={logo} alt="Imagem do icone falso da empresa de gestão"/>
+              Gestão Caju Hub
             </div>
             
             {/* Abas - visíveis apenas em desktop */}

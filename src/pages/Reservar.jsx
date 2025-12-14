@@ -1,57 +1,55 @@
 import { useState, useEffect, useContext } from 'react';
 import { GlobalContext } from '../variaveisGlobais';
 
-// Componente para gerenciar reservas
 export default function Reservar({ showToast }) {
   // Estados principais
-  const [reservas, setReservas] = useState([]); // Todas as reservas
-  const [salas, setSalas] = useState([]); // Todas as salas disponíveis
-  const [mesAtual, setMesAtual] = useState(new Date()); // Mês atual no calendário
-  const [busca, setBusca] = useState(''); // Texto de busca
-  const [modalAberto, setModalAberto] = useState(false); // Modal nova reserva
-  const [modalEdicao, setModalEdicao] = useState(false); // Modal editar reserva
-  const [reservaSelecionada, setReservaSelecionada] = useState(null); // Reserva sendo editada
-  const [carregando, setCarregando] = useState(true); // Estado de carregamento
-  const [visualizacao, setVisualizacao] = useState('suas'); // 'suas', 'calendario' ou 'todas'
-  
-  // Dados da nova reserva
+  const [reservas, setReservas] = useState([]);
+  const [salas, setSalas] = useState([]);
+  const [mesAtual, setMesAtual] = useState(new Date());
+  const [busca, setBusca] = useState('');
+  const [modalAberto, setModalAberto] = useState(false);
+  const [modalEdicao, setModalEdicao] = useState(false);
+  const [reservaSelecionada, setReservaSelecionada] = useState(null);
+  const [carregando, setCarregando] = useState(true);
+  const [visualizacao, setVisualizacao] = useState('suas');
+
+  const [filtrarOpcao, setFiltrarOpcao] = useState('todos')
+  const [ordenacaoData, setOrdenacaoData] = useState('dec');
+
   const [novaReserva, setNovaReserva] = useState({
-    ocupacaoId: '', // ID da sala
-    data: '', // Data e hora
-    quantidade: 1, // Número de pessoas
-    nomeEvento: '' // Nome do evento
+    ocupacaoId: '',
+    data: '',
+    quantidade: 1,
+    nomeEvento: ''
   });
-  
-  const [datasIndisponiveis, setDatasIndisponiveis] = useState([]); // Datas já ocupadas
 
-  // Dados do usuário atual
+  const [datasIndisponiveis, setDatasIndisponiveis] = useState([]);
+
   const { idLocal, tipoLocal } = useContext(GlobalContext);
-  const podeReservar = tipoLocal === 'adm' || tipoLocal === 'funcionario'; // Quem pode reservar
+  const podeReservar = tipoLocal === 'adm' || tipoLocal === 'funcionario' || tipoLocal === 'usuario';
 
-  // Carrega dados iniciais ao iniciar
+  // Carregar dados iniciais ao montar componente
   useEffect(() => {
     carregarDadosIniciais();
   }, []);
 
-  // Calcula datas indisponíveis quando salas ou reservas mudam
+  // Calcular datas indisponíveis quando salas ou reservas mudam
   useEffect(() => {
     if (salas.length > 0 && reservas.length > 0) {
       calcularDatasIndisponiveis();
     }
   }, [salas, reservas]);
 
-  // Carrega salas e reservas
+  // Função para carregar salas e reservas
   const carregarDadosIniciais = async () => {
     try {
       setCarregando(true);
 
-      // Busca lista de salas
-      const respostaSalas = await fetch('/ListarSala');
+      const respostaSalas = await fetch('http://192.168.100.58:5000/ListarSala');
       if (!respostaSalas.ok) throw new Error('Erro ao carregar salas');
       const dadosSalas = await respostaSalas.json();
       setSalas(dadosSalas.salas || []);
 
-      // Carrega reservas do usuário
       await carregarReservas();
 
     } catch (erro) {
@@ -62,14 +60,14 @@ export default function Reservar({ showToast }) {
     }
   };
 
-  // Carrega reservas da API
+  // Carregar reservas do usuário
   const carregarReservas = async () => {
     try {
       const parametros = new URLSearchParams({
-        idUsuario: idLocal // ID do usuário atual
+        idUsuario: idLocal
       });
 
-      const resposta = await fetch(`/ListarReserva?${parametros}`);
+      const resposta = await fetch(`http://192.168.100.58:5000/ListarReserva?${parametros}`);
       if (!resposta.ok) throw new Error('Erro ao carregar reservas');
 
       const dados = await resposta.json();
@@ -80,7 +78,7 @@ export default function Reservar({ showToast }) {
     }
   };
 
-  // Calcula quais datas já estão ocupadas
+  // Calcular quais datas já têm reservas
   const calcularDatasIndisponiveis = () => {
     const datasOcupadas = new Set();
 
@@ -93,7 +91,7 @@ export default function Reservar({ showToast }) {
     setDatasIndisponiveis(Array.from(datasOcupadas));
   };
 
-  // Verifica se uma sala está disponível em uma data específica
+  // Verificar se uma sala está disponível em uma data específica
   const verificarDisponibilidadeData = (salaId, data) => {
     if (!salaId || !data) return true;
 
@@ -108,17 +106,16 @@ export default function Reservar({ showToast }) {
       return dataReservaString === dataString;
     });
 
-    return !reservaMesmoDia; // Retorna true se disponível
+    return !reservaMesmoDia;
   };
 
-  // Retorna salas disponíveis para uma data específica
+  // Obter salas disponíveis para uma data específica
   const obterSalasDisponiveisParaData = (data) => {
     if (!data) return salas;
 
     const dataString = new Date(data).toISOString().split('T')[0];
     const salasOcupadas = new Set();
 
-    // Marca salas que já têm reserva nessa data
     reservas.forEach(reserva => {
       const dataReserva = new Date(reserva.data);
       const dataReservaString = dataReserva.toISOString().split('T')[0];
@@ -127,70 +124,98 @@ export default function Reservar({ showToast }) {
       }
     });
 
-    // Filtra apenas salas não ocupadas
     return salas.filter(sala => !salasOcupadas.has(sala.id));
   };
 
-  // Retorna apenas as reservas do usuário atual
+  // Filtrar reservas do usuário atual
   const obterSuasReservas = () => {
-    return reservas
-      .filter(reserva => reserva.usuarioId === idLocal)
-      .sort((a, b) => new Date(b.data) - new Date(a.data)); // Ordena por data (mais recente primeiro)
+    return reservas.filter(reserva => reserva.usuarioId === idLocal);
   };
 
-  // Retorna todas as reservas
-  const obterTodasReservas = () => {
-    return reservas.sort((a, b) => new Date(a.data) - new Date(b.data));
+  // Ordenar reservas por data (crescente ou decrescente)
+  const ordenarReservas = (reservasParaOrdenar) => {
+    return [...reservasParaOrdenar].sort((a, b) => {
+      const dataA = new Date(a.data);
+      const dataB = new Date(b.data);
+      return ordenacaoData === 'cre' ? dataA - dataB : dataB - dataA;
+    });
   };
 
-  // Navega entre meses no calendário
+  // Aplicar todos os filtros: visualização, status e busca
+  const filtrarReservas = () => {
+    let reservasParaFiltrar = [];
+
+    if (visualizacao === 'suas') {
+      reservasParaFiltrar = obterSuasReservas();
+    } else if (visualizacao === 'todas') {
+      reservasParaFiltrar = reservas;
+    } else {
+      return [];
+    }
+
+    if (filtrarOpcao !== 'todos') {
+      reservasParaFiltrar = reservasParaFiltrar.filter(r => r.status === filtrarOpcao);
+    }
+
+    if (busca) {
+      reservasParaFiltrar = reservasParaFiltrar.filter(r => {
+        const sala = salas.find(s => s.id === r.ocupacaoId);
+        const buscaMinuscula = busca.toLowerCase();
+
+        return r.nomeEvento?.toLowerCase().includes(buscaMinuscula) ||
+          r.usuarioNome?.toLowerCase().includes(buscaMinuscula) ||
+          sala?.nome.toLowerCase().includes(buscaMinuscula);
+      });
+    }
+
+    return ordenarReservas(reservasParaFiltrar);
+  };
+
+  // Navegar entre meses no calendário
   const navegarMes = (direcao) => {
     const novaData = new Date(mesAtual);
-    novaData.setMonth(mesAtual.getMonth() + direcao); // +1 para próximo, -1 para anterior
+    novaData.setMonth(mesAtual.getMonth() + direcao);
 
     const hoje = new Date();
     const limiteAnterior = new Date(hoje);
-    limiteAnterior.setMonth(hoje.getMonth() - 3); // 3 meses para trás
+    limiteAnterior.setMonth(hoje.getMonth() - 3);
     const limiteFuturo = new Date(hoje);
-    limiteFuturo.setMonth(hoje.getMonth() + 12); // 12 meses para frente
+    limiteFuturo.setMonth(hoje.getMonth() + 12);
 
-    // Só permite navegar dentro do limite
     if (novaData >= limiteAnterior && novaData <= limiteFuturo) {
       setMesAtual(novaData);
     }
   };
 
-  // Retorna todos os dias de um mês para o calendário
+  // Gerar array de dias do mês atual para o calendário
   const obterDiasDoMes = () => {
     const ano = mesAtual.getFullYear();
     const mes = mesAtual.getMonth();
     const primeiroDia = new Date(ano, mes, 1);
     const ultimoDia = new Date(ano, mes + 1, 0);
     const diasNoMes = ultimoDia.getDate();
-    const diaSemanaInicio = primeiroDia.getDay(); // Dia da semana do primeiro dia (0=domingo)
+    const diaSemanaInicio = primeiroDia.getDay();
 
     const dias = [];
-    // Adiciona espaços vazios para os dias da semana antes do primeiro dia
     for (let i = 0; i < diaSemanaInicio; i++) {
       dias.push(null);
     }
-    // Adiciona os dias do mês
     for (let dia = 1; dia <= diasNoMes; dia++) {
       dias.push(new Date(ano, mes, dia));
     }
     return dias;
   };
 
-  // Retorna reservas de um dia específico
+  // Obter todas as reservas de um dia específico
   const obterReservasDoDia = (data) => {
     if (!data) return [];
     return reservas.filter(r => {
       const dataReserva = new Date(r.data);
-      return dataReserva.toDateString() === data.toDateString(); // Compara apenas data, não hora
+      return dataReserva.toDateString() === data.toDateString();
     });
   };
 
-  // Cria uma nova reserva
+  // Criar uma nova reserva
   const criarReserva = async (e) => {
     e.preventDefault();
 
@@ -199,7 +224,6 @@ export default function Reservar({ showToast }) {
       return;
     }
 
-    // Validações
     if (!novaReserva.nomeEvento || novaReserva.nomeEvento.trim() === '') {
       showToast('Nome do evento é obrigatório', 'error');
       return;
@@ -215,7 +239,6 @@ export default function Reservar({ showToast }) {
       return;
     }
 
-    // Verifica disponibilidade
     const disponivel = verificarDisponibilidadeData(novaReserva.ocupacaoId, novaReserva.data);
     if (!disponivel) {
       showToast('Esta sala já está reservada para este dia. Escolha outra data ou sala.', 'error');
@@ -223,7 +246,6 @@ export default function Reservar({ showToast }) {
     }
 
     try {
-      // Parâmetros para a API
       const parametros = new URLSearchParams({
         idUsuario: idLocal,
         idOcupacao: novaReserva.ocupacaoId,
@@ -232,8 +254,7 @@ export default function Reservar({ showToast }) {
         nomeEvento: novaReserva.nomeEvento.trim()
       });
 
-      // Envia requisição para criar reserva
-      const resposta = await fetch(`/CriarReserva?${parametros}`, {
+      const resposta = await fetch(`http://192.168.100.58:5000/CriarReserva?${parametros}`, {
         method: 'POST'
       });
 
@@ -242,11 +263,15 @@ export default function Reservar({ showToast }) {
         throw new Error(erroDados.mensagem || 'Erro ao criar reserva');
       }
 
-      // Atualiza a lista de reservas
       await carregarReservas();
-      setModalAberto(false); // Fecha modal
-      setNovaReserva({ ocupacaoId: '', data: '', quantidade: 1, nomeEvento: '' }); // Limpa formulário
-      showToast('Reserva criada com sucesso!', 'success');
+      setModalAberto(false);
+      setNovaReserva({ ocupacaoId: '', data: '', quantidade: 1, nomeEvento: '' });
+      if (tipoLocal == 'usuario') {
+        showToast('Reserva criada com sucesso, espere um adm confirmar!', 'success');
+      }
+      else {
+        showToast('Reserva criada com sucesso!', 'success');
+      }
 
     } catch (erro) {
       console.error('Erro ao criar reserva:', erro);
@@ -254,9 +279,9 @@ export default function Reservar({ showToast }) {
     }
   };
 
-  // Abre modal para editar reserva
+  // Abrir modal para editar uma reserva
   const abrirEdicaoReserva = (reserva) => {
-    const podeEditar = reserva.usuarioId === idLocal || tipoLocal === 'adm' || tipoLocal === 'funcionario';
+    const podeEditar = reserva.usuarioId === idLocal || tipoLocal === 'adm';
 
     if (podeEditar) {
       setReservaSelecionada(reserva);
@@ -266,13 +291,12 @@ export default function Reservar({ showToast }) {
     }
   };
 
-  // Salva alterações na reserva
+  // Editar uma reserva existente
   const editarReserva = async (e) => {
     e.preventDefault();
 
     if (!reservaSelecionada) return;
 
-    // Validações
     if (!reservaSelecionada.nomeEvento || reservaSelecionada.nomeEvento.trim() === '') {
       showToast('Nome do evento é obrigatório', 'error');
       return;
@@ -286,7 +310,7 @@ export default function Reservar({ showToast }) {
         nomeEvento: reservaSelecionada.nomeEvento.trim()
       });
 
-      const resposta = await fetch(`/AtualizarReserva?${parametros}`, {
+      const resposta = await fetch(`http://192.168.100.58:5000/AtualizarReserva?${parametros}`, {
         method: 'PATCH'
       });
 
@@ -305,11 +329,10 @@ export default function Reservar({ showToast }) {
     }
   };
 
-  // Exclui uma reserva
+  // Excluir uma reserva
   const excluirReserva = async () => {
     if (!reservaSelecionada) return;
 
-    // Confirmação do usuário
     if (!window.confirm('Tem certeza que deseja excluir esta reserva?')) {
       return;
     }
@@ -320,7 +343,7 @@ export default function Reservar({ showToast }) {
         idReserva: reservaSelecionada.id
       });
 
-      const resposta = await fetch(`/DeletarReserva?${parametros}`, {
+      const resposta = await fetch(`http://192.168.100.58:5000/DeletarReserva?${parametros}`, {
         method: 'DELETE'
       });
 
@@ -339,56 +362,62 @@ export default function Reservar({ showToast }) {
     }
   };
 
-  // Atualiza data da nova reserva e verifica disponibilidade
+  // Atualizar data na nova reserva e verificar disponibilidade
   const alterarData = (e) => {
     const novaData = e.target.value;
     setNovaReserva({ ...novaReserva, data: novaData });
 
-    // Se já tem sala selecionada, verifica se continua disponível
     if (novaReserva.ocupacaoId && novaData) {
       const salasDisponiveisPara = obterSalasDisponiveisParaData(novaData);
       const salaEstaDisponivel = salasDisponiveisPara.some(s => s.id === novaReserva.ocupacaoId);
 
       if (!salaEstaDisponivel) {
-        setNovaReserva(prev => ({ ...prev, ocupacaoId: '' })); // Limpa sala selecionada
+        setNovaReserva(prev => ({ ...prev, ocupacaoId: '' }));
         showToast('A sala selecionada já está reservada para esta data. Escolha outra sala.', 'warning');
       }
     }
   };
 
-  // Verifica se há salas disponíveis para uma data
+  // Verificar se há salas disponíveis para uma data
   const verificarDataDisponivel = (data) => {
     if (!data) return true;
     const salasDisponiveis = obterSalasDisponiveisParaData(data);
-    return salasDisponiveis.length > 0; // True se houver pelo menos uma sala disponível
+    return salasDisponiveis.length > 0;
   };
 
-  // Filtra reservas baseado na busca e visualização
-  const filtrarReservas = () => {
-    let reservasParaFiltrar = [];
-
-    if (visualizacao === 'suas') {
-      reservasParaFiltrar = obterSuasReservas();
-    } else if (visualizacao === 'todas') {
-      reservasParaFiltrar = obterTodasReservas();
-    } else {
-      return [];
+  // Atualizar status de uma reserva (apenas para administradores)
+  const atualizarTipo = async (novoTipo, idReserva) => {
+    if (novoTipo == '') {
+      showToast('Erro ao pegar o novo tipo', 'error');
+      return;
     }
 
-    if (!busca) return reservasParaFiltrar;
+    try {
+      const parametros = new URLSearchParams({
+        idAdm: idLocal,
+        idReserva: idReserva,
+        novoStatus: novoTipo
+      });
 
-    // Filtra por nome do evento, nome do usuário ou nome da sala
-    return reservasParaFiltrar.filter(r => {
-      const sala = salas.find(s => s.id === r.ocupacaoId);
-      const buscaMinuscula = busca.toLowerCase();
+      const resposta = await fetch(`http://192.168.100.58:5000/AtualizarTipo?${parametros}`, {
+        method: 'PATCH'
+      });
 
-      return r.nomeEvento?.toLowerCase().includes(buscaMinuscula) ||
-        r.usuarioNome?.toLowerCase().includes(buscaMinuscula) ||
-        sala?.nome.toLowerCase().includes(buscaMinuscula);
-    });
+      const dados = await resposta.json();
+
+      if (resposta.ok) {
+        showToast(`Atualização para ${novoTipo} feita`, "success");
+        await carregarReservas();
+      } else {
+        showToast(dados.mensagem || 'Erro ao atualizar status', 'error');
+      }
+    } catch (error) {
+      console.error('Erro:', error);
+      showToast('Erro ao conectar com o servidor', 'error');
+    }
   };
 
-  // Arrays auxiliares para calendário
+  // Arrays auxiliares para exibição
   const meses = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
@@ -397,21 +426,20 @@ export default function Reservar({ showToast }) {
   const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
   // Dados calculados para renderização
-  const suasReservas = obterSuasReservas();
   const reservasFiltradasResultado = filtrarReservas();
   const salasDisponiveis = obterSalasDisponiveisParaData(novaReserva.data);
 
-  // Renderização do componente
   return (
     <div className="min-h-screen bg-white">
-      {/* Cabeçalho */}
+      {/* Cabeçalho da página */}
       <div className="border-b border-gray-200 bg-white sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 py-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
             <div className="flex-1">
-              <h1 className="text-4xl font-bold text-[#5C4033] mb-1">Reservas</h1>
+              <h1 className="-4xl font-bold text-[#5C4033] mb-1">Reservas</h1>
               <p className="text-sm text-[#6B7280]">Gerencie suas reservas de salas e espaços</p>
             </div>
+            {/* Botão para nova reserva (apenas se tiver permissão) */}
             {podeReservar && (
               <button
                 onClick={() => setModalAberto(true)}
@@ -426,7 +454,7 @@ export default function Reservar({ showToast }) {
 
       {/* Conteúdo principal */}
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Barra de busca e filtros */}
+        {/* Seção de busca e filtros */}
         <div className="mb-8">
           <div className="mb-6">
             <input
@@ -442,38 +470,62 @@ export default function Reservar({ showToast }) {
             />
           </div>
 
-          {/* Botões de visualização */}
-          <div className="flex gap-2 p-1 bg-gray-100 rounded-lg w-auto flex-col md:flex-row md:w-fit">
-            <button
-              onClick={() => setVisualizacao('suas')}
-              className={`px-5 py-2 rounded-md font-medium text-sm transition duration-300 ${
-                visualizacao === 'suas'
+          {/* Botões de visualização e filtros */}
+          <div className="flex gap-4 items-center flex-col md:flex-row">
+            <div className="flex gap-2 p-1 bg-gray-100 rounded-lg w-full flex-col md:flex-row md:w-fit">
+              <button
+                onClick={() => setVisualizacao('suas')}
+                className={`px-5 py-2 rounded-md font-medium text-sm transition duration-300 ${visualizacao === 'suas'
                   ? 'bg-white text-[#5C4033] shadow-sm'
                   : 'text-[#6B7280] hover:text-[#5C4033]'
-              }`}
-            >
-              Suas Reservas
-            </button>
-            <button
-              onClick={() => setVisualizacao('calendario')}
-              className={`px-5 py-2 rounded-md font-medium text-sm transition duration-300 ${
-                visualizacao === 'calendario'
+                  }`}
+              >
+                Suas Reservas
+              </button>
+              <button
+                onClick={() => setVisualizacao('calendario')}
+                className={`px-5 py-2 rounded-md font-medium text-sm transition duration-300 ${visualizacao === 'calendario'
                   ? 'bg-white text-[#5C4033] shadow-sm'
                   : 'text-[#6B7280] hover:text-[#5C4033]'
-              }`}
-            >
-              Calendário
-            </button>
-            <button
-              onClick={() => setVisualizacao('todas')}
-              className={`px-5 py-2 rounded-md font-medium text-sm transition duration-300 ${
-                visualizacao === 'todas'
+                  }`}
+              >
+                Calendário
+              </button>
+              <button
+                onClick={() => setVisualizacao('todas')}
+                className={`px-5 py-2 rounded-md font-medium text-sm transition duration-300 ${visualizacao === 'todas'
                   ? 'bg-white text-[#5C4033] shadow-sm'
                   : 'text-[#6B7280] hover:text-[#5C4033]'
-              }`}
-            >
-              Todas as Reservas
-            </button>
+                  }`}
+              >
+                Todas as Reservas
+              </button>
+            </div>
+
+            {/* Filtros de ordenação e status */}
+            <div className="flex flex-row gap-4 [@media(max-width:410px)]:flex-col">
+              <select
+                value={ordenacaoData}
+                onChange={(e) => setOrdenacaoData(e.target.value)}
+                className="px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F4D35E] focus:border-transparent bg-white text-gray-800 text-sm"
+              >
+                <option value="dec">Data ↓ (Decrescente)</option>
+                <option value="cre">Data ↑ (Crescente)</option>
+              </select>
+
+              {/* Filtro de status (apenas para administradores) */}
+              {tipoLocal === 'adm' && visualizacao === 'todas' && (
+                <select
+                  value={filtrarOpcao}
+                  onChange={(e) => setFiltrarOpcao(e.target.value)}
+                  className="px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F4D35E] focus:border-transparent bg-white text-gray-800 text-sm"
+                >
+                  <option value="todos">Todos os Status</option>
+                  <option value="pendente">Pendente</option>
+                  <option value="aceita">Aceita</option>
+                </select>
+              )}
+            </div>
           </div>
         </div>
 
@@ -483,17 +535,19 @@ export default function Reservar({ showToast }) {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-[#5C4033]">Suas Reservas</h2>
               <span className="text-sm text-[#6B7280] font-medium">
-                {suasReservas.length} reserva{suasReservas.length !== 1 ? 's' : ''}
+                {reservasFiltradasResultado.length} reserva{reservasFiltradasResultado.length !== 1 ? 's' : ''}
               </span>
             </div>
 
+            {/* Indicador de carregamento */}
             {carregando ? (
               <div className="flex justify-center items-center h-40">
                 <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#F4D35E] border-t-[#5C4033]"></div>
               </div>
-            ) : suasReservas.length > 0 ? (
+            ) : reservasFiltradasResultado.length > 0 ? (
               <div className="grid gap-4">
-                {suasReservas.map(reserva => {
+                {/* Lista de reservas do usuário */}
+                {reservasFiltradasResultado.map(reserva => {
                   const sala = salas.find(s => s.id === reserva.ocupacaoId);
                   const dataReserva = new Date(reserva.data);
                   const dataPassada = new Date(reserva.data) < new Date();
@@ -510,12 +564,11 @@ export default function Reservar({ showToast }) {
                             <h3 className="font-semibold text-[#5C4033] text-lg group-hover:text-[#3E2A21]">
                               {reserva.nomeEvento || 'Evento sem nome'}
                             </h3>
-                            <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                              dataPassada
-                                ? 'bg-gray-100 text-gray-600'
-                                : 'bg-green-100 text-green-700'
-                            }`}>
-                              {dataPassada ? 'Passada' : 'Ativa'}
+                            <span className={`px-3 py-1 text-xs font-semibold rounded-full ${reserva.status === 'pendente'
+                              ? 'bg-gray-100 text-gray-600'
+                              : 'bg-green-100 text-green-700'
+                              }`}>
+                              {reserva.status === 'pendente' ? 'Pendente' : 'Ativa'}
                             </span>
                           </div>
                           <div className="space-y-2 text-sm text-[#6B7280]">
@@ -541,6 +594,7 @@ export default function Reservar({ showToast }) {
                 })}
               </div>
             ) : (
+              /* Mensagem quando não há reservas */
               <div className="text-center py-16 bg-gray-50 rounded-lg border border-gray-200">
                 <p className="text-[#6B7280] mb-4">Você não tem reservas</p>
                 {podeReservar && (
@@ -601,13 +655,12 @@ export default function Reservar({ showToast }) {
                     return (
                       <div
                         key={indice}
-                        className={`min-h-28 p-3 border-r border-b border-gray-200 last:border-r-0 ${
-                          data
-                            ? disponivel
-                              ? 'bg-white hover:bg-gray-50'
-                              : 'bg-gray-50'
+                        className={`min-h-28 p-3 border-r border-b border-gray-200 last:border-r-0 ${data
+                          ? disponivel
+                            ? 'bg-white hover:bg-gray-50'
                             : 'bg-gray-50'
-                        } ${hoje ? 'ring-2 ring-[#F4D35E] ring-inset' : ''}`}
+                          : 'bg-gray-50'
+                          } ${hoje ? 'ring-2 ring-[#F4D35E] ring-inset' : ''}`}
                       >
                         {data && (
                           <>
@@ -616,6 +669,7 @@ export default function Reservar({ showToast }) {
                               {!disponivel && <span className="ml-1">🔒</span>}
                             </div>
                             <div className="space-y-1">
+                              {/* Suas reservas no dia */}
                               {suasReservasDoDia.slice(0, 2).map(reserva => (
                                 <div
                                   key={reserva.id}
@@ -626,22 +680,23 @@ export default function Reservar({ showToast }) {
                                   {reserva.nomeEvento || 'Evento'}
                                 </div>
                               ))}
+                              {/* Reservas de outros usuários */}
                               {outrasReservasDoDia.slice(0, 2).map(reserva => {
                                 const podeEditar = reserva.usuarioId === idLocal || tipoLocal === 'adm' || tipoLocal === 'funcionario';
-                                
+
                                 return (
                                   <div
                                     key={reserva.id}
                                     onClick={() => podeEditar && abrirEdicaoReserva(reserva)}
-                                    className={`text-xs p-2 rounded bg-[#F6E7A1] text-[#5C4033] font-medium ${
-                                      podeEditar ? 'cursor-pointer hover:bg-[#F4D35E]' : 'cursor-default'
-                                    } transition duration-300 truncate`}
+                                    className={`text-xs p-2 rounded bg-[#F6E7A1] text-[#5C4033] font-medium ${podeEditar ? 'cursor-pointer hover:bg-[#F4D35E]' : 'cursor-default'
+                                      } transition duration-300 truncate`}
                                     title={`${reserva.nomeEvento} - ${salas.find(s => s.id === reserva.ocupacaoId)?.nome}`}
                                   >
                                     {reserva.nomeEvento || 'Evento'}
                                   </div>
                                 );
                               })}
+                              {/* Indicador de mais reservas */}
                               {reservasDoDia.length > 2 && (
                                 <div className="text-xs text-[#6B7280] font-semibold px-2">
                                   +{reservasDoDia.length - 2} mais
@@ -676,6 +731,7 @@ export default function Reservar({ showToast }) {
               </div>
             ) : reservasFiltradasResultado.length > 0 ? (
               <div className="grid gap-4">
+                {/* Lista de todas as reservas */}
                 {reservasFiltradasResultado.map(reserva => {
                   const sala = salas.find(s => s.id === reserva.ocupacaoId);
                   const dataReserva = new Date(reserva.data);
@@ -686,11 +742,10 @@ export default function Reservar({ showToast }) {
                     <div
                       key={reserva.id}
                       onClick={() => podeEditar && abrirEdicaoReserva(reserva)}
-                      className={`bg-white border rounded-lg p-6 transition duration-300 ${
-                        minhaReserva
-                          ? 'border-[#F4D35E] hover:shadow-md hover:border-[#F6E7A1]'
-                          : 'border-gray-200 hover:shadow-md hover:border-gray-300'
-                      } ${podeEditar ? 'cursor-pointer' : 'cursor-default'} group`}
+                      className={`bg-white border rounded-lg p-6 transition duration-300 ${minhaReserva
+                        ? 'border-[#F4D35E] hover:shadow-md hover:border-[#F6E7A1]'
+                        : 'border-gray-200 hover:shadow-md hover:border-gray-300'
+                        } ${podeEditar ? 'cursor-pointer' : 'cursor-default'} group`}
                     >
                       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div className="flex-1">
@@ -701,6 +756,11 @@ export default function Reservar({ showToast }) {
                             {minhaReserva && (
                               <span className="text-xs bg-[#F4D35E] text-[#3E2A21] px-3 py-1 rounded-full font-semibold">
                                 Minha
+                              </span>
+                            )}
+                            {reserva.status == 'pendente' && (
+                              <span className="text-xs bg-[#F4D35E] text-[#3E2A21] px-3 py-1 rounded-full font-semibold">
+                                Pendente
                               </span>
                             )}
                           </div>
@@ -714,12 +774,62 @@ export default function Reservar({ showToast }) {
                           </div>
                         </div>
                         <div className="md:text-right">
+                          {/* Botões de aprovação para administradores (versão desktop) */}
+                          {reserva.status == 'pendente' && tipoLocal === 'adm' ? (
+                            <div className='flex-row gap-2 mb-2 justify-end hidden md:flex'>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  atualizarTipo('aceita', reserva.id);
+                                }}
+                                className=" group flex items-center w-6 hover:w-24 overflow-hidden transition-all duration-300 bg-green-200 rounded-md text-black"
+                              >
+                                <span>✔️</span>
+                                <span className=' ml-2 whitespace-nowrap opacity-0 transition-opacity duration-300 group-hover:opacity-100'>Aceitar</span>
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  atualizarTipo('recusado', reserva.id);
+                                }}
+                                className="group flex items-center w-6 hover:w-24 overflow-hidden transition-all duration-300 bg-red-200 rounded-md text-black"
+                              >
+                                <span>❌</span>
+                                <span className=' ml-2 whitespace-nowrap opacity-0 transition-opacity duration-300 group-hover:opacity-100'>Recusar</span>
+                              </button>
+                            </div>
+                          ) : null}
                           <div className="text-[#5C4033] font-bold text-lg">
                             {dataReserva.toLocaleDateString('pt-BR')}
                           </div>
                           <div className="text-[#6B7280] text-sm">
                             {dataReserva.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                           </div>
+                          {/* Botões de aprovação para administradores (versão mobile) */}
+                          {reserva.status == 'pendente' && tipoLocal === 'adm' ? (
+                            <div className='flex flex-row gap-2 mb-2 justify-start  md:hidden'>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  atualizarTipo('aceita', reserva.id);
+                                }}
+                                className=" group flex items-center w-6 hover:w-24 overflow-hidden transition-all duration-300 bg-green-200 rounded-md text-black"
+                              >
+                                <span>✔️</span>
+                                <span className=' ml-2 whitespace-nowrap opacity-0 transition-opacity duration-300 group-hover:opacity-100'>Aceitar</span>
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  atualizarTipo('recusado', reserva.id);
+                                }}
+                                className="group flex items-center w-6 hover:w-24 overflow-hidden transition-all duration-300 bg-red-200 rounded-md text-black"
+                              >
+                                <span>❌</span>
+                                <span className=' ml-2 whitespace-nowrap opacity-0 transition-opacity duration-300 group-hover:opacity-100'>Recusar</span>
+                              </button>
+                            </div>
+                          ) : null}
                         </div>
                       </div>
                     </div>
@@ -727,6 +837,7 @@ export default function Reservar({ showToast }) {
                 })}
               </div>
             ) : (
+              /* Mensagem quando não há reservas */
               <div className="text-center py-16 bg-gray-50 rounded-lg border border-gray-200">
                 <p className="text-[#6B7280]">
                   {busca ? 'Nenhuma reserva encontrada com essa busca' : 'Nenhuma reserva cadastrada'}
@@ -737,7 +848,7 @@ export default function Reservar({ showToast }) {
         )}
       </div>
 
-      {/* Modal: Nova Reserva */}
+      {/* Modal para criar nova reserva */}
       {modalAberto && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-8 max-h-[90vh] overflow-y-auto">
@@ -745,7 +856,6 @@ export default function Reservar({ showToast }) {
             <p className="text-sm text-[#6B7280] mb-6">Preencha os detalhes da sua reserva</p>
 
             <form onSubmit={criarReserva} className="space-y-5">
-              {/* Nome do Evento */}
               <div>
                 <label className="block text-sm font-semibold text-[#5C4033] mb-2">
                   Nome do Evento <span className="text-red-500">*</span>
@@ -760,7 +870,6 @@ export default function Reservar({ showToast }) {
                 />
               </div>
 
-              {/* Data e Hora */}
               <div>
                 <label className="block text-sm font-semibold text-[#5C4033] mb-2">
                   Data e Hora <span className="text-red-500">*</span>
@@ -771,7 +880,7 @@ export default function Reservar({ showToast }) {
                   onChange={alterarData}
                   className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F4D35E] focus:border-transparent bg-white text-gray-800 transition duration-200"
                   required
-                  min={new Date().toISOString().slice(0, 16)} // Não permite datas passadas
+                  min={new Date().toISOString().slice(0, 16)}
                 />
                 {novaReserva.data && (
                   <div className="mt-2">
@@ -788,7 +897,6 @@ export default function Reservar({ showToast }) {
                 )}
               </div>
 
-              {/* Seleção de Sala */}
               <div>
                 <label className="block text-sm font-semibold text-[#5C4033] mb-2">
                   Sala/Espaço <span className="text-red-500">*</span>
@@ -815,7 +923,6 @@ export default function Reservar({ showToast }) {
                 </select>
               </div>
 
-              {/* Quantidade de Pessoas */}
               <div>
                 <label className="block text-sm font-semibold text-[#5C4033] mb-2">
                   Quantidade de Pessoas <span className="text-red-500">*</span>
@@ -841,7 +948,6 @@ export default function Reservar({ showToast }) {
                 )}
               </div>
 
-              {/* Botões do Modal */}
               <div className="flex gap-3 pt-4">
                 <button
                   type="submit"
@@ -863,14 +969,13 @@ export default function Reservar({ showToast }) {
         </div>
       )}
 
-      {/* Modal: Editar Reserva */}
+      {/* Modal para editar reserva */}
       {modalEdicao && reservaSelecionada && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-8 max-h-[90vh] overflow-y-auto">
             <h2 className="text-2xl font-bold text-[#5C4033] mb-1">Editar Reserva</h2>
             <p className="text-sm text-[#6B7280] mb-6">Atualize os detalhes da sua reserva</p>
 
-            {/* Informações da reserva (somente leitura) */}
             <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
               <div className="space-y-3">
                 <p className="text-sm text-[#6B7280]">
@@ -885,7 +990,6 @@ export default function Reservar({ showToast }) {
               </div>
             </div>
 
-            {/* Formulário de edição */}
             <form onSubmit={editarReserva} className="space-y-5">
               <div>
                 <label className="block text-sm font-semibold text-[#5C4033] mb-2">
@@ -928,7 +1032,6 @@ export default function Reservar({ showToast }) {
                 </div>
               </div>
 
-              {/* Botões do modal de edição */}
               <div className="flex flex-col gap-3 pt-4">
                 <button
                   type="submit"

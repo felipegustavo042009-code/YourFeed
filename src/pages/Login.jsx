@@ -22,7 +22,7 @@ export default function Login({ onLogin, onVoltar, showToast }) {
 
   // Regras de validação
   const regexNome = /^[A-Za-zÀ-ÖØ-öø-ÿ\s]{2,60}$/;
-  const regexEmail = /^[A-Za-z0-9._%+-]+@(gmail\.com|outlook\.com)$/;
+  const regexEmail = /^[A-Za-z0-9._%+-]+@(gmail\.com)$/;
   const regexSenha = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,50}$/;
 
   // Valida dados do cadastro
@@ -71,7 +71,7 @@ export default function Login({ onLogin, onVoltar, showToast }) {
 
     // Chama API para enviar token
     try {
-      const response = await fetch(`/enviar-token?email=${email}`, {
+      const response = await fetch(`http://192.168.100.58:5000/enviar-token?email=${email}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
@@ -106,7 +106,7 @@ export default function Login({ onLogin, onVoltar, showToast }) {
 
     // Chama API de login
     try {
-      const response = await fetch(`/LoginUsuario?Email=${email}&Senha=${senha}`, {
+      const response = await fetch(`http://192.168.100.58:5000/LoginUsuario?Email=${email}&Senha=${senha}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
@@ -138,7 +138,7 @@ export default function Login({ onLogin, onVoltar, showToast }) {
 
     // Chama API para validar código e criar conta
     try {
-      const response = await fetch(`/RegisterUsuarios-validarToken?email=${email}&senha=${senha}&nome=${nome}&token=${codigo}`, {
+      const response = await fetch(`http://192.168.100.58:5000/RegisterUsuarios-validarToken?email=${email}&senha=${senha}&nome=${nome}&token=${codigo}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
@@ -221,6 +221,14 @@ export default function Login({ onLogin, onVoltar, showToast }) {
                   <p className="text-gray-400 text-sm">Equipe dedicada para ajudá-lo sempre</p>
                 </div>
               </div>
+              
+              <div className="flex items-start gap-3">
+                <div>
+                  <p className="text-white font-semibold">Adm Padrão</p>
+                  <p className="text-gray-400 text-sm">Email:adm@gmail.com / senha: Adm123</p>
+                </div>
+              </div>
+              
             </div>
           </div>
 
@@ -477,7 +485,10 @@ export default function Login({ onLogin, onVoltar, showToast }) {
               {/* Rodapé */}
               <div className="mt-8 pt-6 border-t border-gray-200">
                 <p className="text-xs text-[#6B7280] text-center">
-                  Ao continuar, você concorda com nossos Termos de Serviço e Política de Privacidade
+                  Adm padrão: Email(adm@gmail.com) Senha(Adm123)
+                </p>
+                <p className="text-xs text-[#6B7280] text-center">
+                  Ao continuar, concorda com nossos Termos de Serviço e Política de Privacidade
                 </p>
               </div>
             </div>

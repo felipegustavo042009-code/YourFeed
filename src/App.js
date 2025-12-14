@@ -86,7 +86,7 @@ function App() {
           <>
             <div className="bg-white shadow-md p-4">
               <div className="max-w-7xl mx-auto flex justify-between items-center">
-                <div className="text-xl font-bold text-blue-600" style={{ color: "rgb(62, 42, 33)" }}>Sistema de Reservas</div>
+                <div className="text-xl font-bold text-blue-600" style={{ color: "rgb(62, 42, 33)" }}>Sistema de Gerenciamento</div>
                 <button
                   onClick={handleVoltar}
                   className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition duration-300"style={{ backgroundColor: "rgb(244, 211, 94)",color: "rgb(62, 42, 33)"}}
