@@ -36,7 +36,7 @@ export default function Usuario({ usuario, onLogout, showToast }) {
     }
 
     try {
-      const resposta = await fetch(`http:///ListenUsuarios?idUsuario=${idLocal}`, {
+      const resposta = await fetch(`/ListenUsuarios?idUsuario=${idLocal}`, {
         method: "GET",
         headers: { "Content-Type": "application/json" },
       });
@@ -63,7 +63,7 @@ export default function Usuario({ usuario, onLogout, showToast }) {
 
     try {
       const resposta = await fetch(
-        `http:///AtualizarUsuariosTipo?idUsuario=${idUsuario}&tipoNovo=${novoTipo}&idAdm=${idLocal}`,
+        `/AtualizarUsuariosTipo?idUsuario=${idUsuario}&tipoNovo=${novoTipo}&idAdm=${idLocal}`,
         {
           method: "PATCH",
         }
@@ -102,7 +102,7 @@ export default function Usuario({ usuario, onLogout, showToast }) {
 
     try {
       const resposta = await fetch(
-        `http:///DeleteUsuarios?idUsuario=${idUsuario}&idAdm=${idLocal}`,
+        `/DeleteUsuarios?idUsuario=${idUsuario}&idAdm=${idLocal}`,
         {
           method: "DELETE",
         }
@@ -145,7 +145,7 @@ export default function Usuario({ usuario, onLogout, showToast }) {
 
     try {
       const resposta = await fetch(
-        `http:///AtualizarUsuariosDados?idUsuario=${idLocal}&novaSenha=${novaSenha}&novoNome=${novoNome}`,
+        `/AtualizarUsuariosDados?idUsuario=${idLocal}&novaSenha=${novaSenha}&novoNome=${novoNome}`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },

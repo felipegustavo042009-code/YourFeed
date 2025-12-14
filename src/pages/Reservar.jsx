@@ -46,7 +46,7 @@ export default function Reservar({ showToast }) {
       setCarregando(true);
 
       // Busca lista de salas
-      const respostaSalas = await fetch('http:///ListarSala');
+      const respostaSalas = await fetch('/ListarSala');
       if (!respostaSalas.ok) throw new Error('Erro ao carregar salas');
       const dadosSalas = await respostaSalas.json();
       setSalas(dadosSalas.salas || []);
@@ -69,7 +69,7 @@ export default function Reservar({ showToast }) {
         idUsuario: idLocal // ID do usuário atual
       });
 
-      const resposta = await fetch(`http:///ListarReserva?${parametros}`);
+      const resposta = await fetch(`/ListarReserva?${parametros}`);
       if (!resposta.ok) throw new Error('Erro ao carregar reservas');
 
       const dados = await resposta.json();
@@ -233,7 +233,7 @@ export default function Reservar({ showToast }) {
       });
 
       // Envia requisição para criar reserva
-      const resposta = await fetch(`http:///CriarReserva?${parametros}`, {
+      const resposta = await fetch(`/CriarReserva?${parametros}`, {
         method: 'POST'
       });
 
@@ -286,7 +286,7 @@ export default function Reservar({ showToast }) {
         nomeEvento: reservaSelecionada.nomeEvento.trim()
       });
 
-      const resposta = await fetch(`http:///AtualizarReserva?${parametros}`, {
+      const resposta = await fetch(`/AtualizarReserva?${parametros}`, {
         method: 'PATCH'
       });
 
@@ -320,7 +320,7 @@ export default function Reservar({ showToast }) {
         idReserva: reservaSelecionada.id
       });
 
-      const resposta = await fetch(`http:///DeletarReserva?${parametros}`, {
+      const resposta = await fetch(`/DeletarReserva?${parametros}`, {
         method: 'DELETE'
       });
 
