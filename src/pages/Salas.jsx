@@ -9,7 +9,7 @@ export default function Salas({ showToast }) {
   const [modalEditarAberto, setModalEditarAberto] = useState(false); // Modal editar sala
   const [salaSelecionada, setSalaSelecionada] = useState(null); // Sala sendo editada
   const [loading, setLoading] = useState(true); // Estado carregamento
-  const [imagemFile, setImagemFile] = useState(null); // Arquivo de imagem
+  const [imagemBase64, setImagemBase64] = useState(null); // Imagem em Base64
   const [previewImagem, setPreviewImagem] = useState(null); // Preview da imagem
 
   // Dados da nova sala
@@ -26,8 +26,7 @@ export default function Salas({ showToast }) {
     nome: '',
     sobre: '',
     categoria: 'sala',
-    quantidadeMaxima: 10,
-    imagemAtual: ''
+    quantidadeMaxima: 10
   });
 
   // Verifica permissões do usuário
@@ -66,11 +65,11 @@ export default function Salas({ showToast }) {
     }
 
     try {
-      const formData = new FormData();
-      if (imagemFile) {
-        formData.append('imagem', imagemFile); // Adiciona imagem
-      }
-      
+      // Preparar dados para enviar
+      const dadosParaEnviar = {
+        imagemBase64: imagemBase64
+      };
+
       // Parâmetros da requisição
       const queryParams = new URLSearchParams({
         idUsuarios: idLocal,
@@ -82,7 +81,10 @@ export default function Salas({ showToast }) {
 
       const response = await fetch(`/CriarSala?${queryParams}`, {
         method: 'POST',
-        body: formData
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(dadosParaEnviar)
       });
 
       if (!response.ok) {
@@ -110,10 +112,9 @@ export default function Salas({ showToast }) {
       nome: sala.nome,
       sobre: sala.sobre || '',
       categoria: sala.categoria,
-      quantidadeMaxima: sala.quantidadeMaxima,
-      imagemAtual: sala.imagem
+      quantidadeMaxima: sala.quantidadeMaxima
     });
-    setPreviewImagem(getImagemSala(sala)); // Carrega imagem atual
+    setPreviewImagem(sala.imagem); // Carrega imagem atual (Base64)
     setModalEditarAberto(true);
   };
 
@@ -127,11 +128,11 @@ export default function Salas({ showToast }) {
     }
 
     try {
-      const formData = new FormData();
-      if (imagemFile) {
-        formData.append('imagem', imagemFile); // Nova imagem
-      }
-      
+      // Preparar dados para enviar
+      const dadosParaEnviar = {
+        imagemBase64: imagemBase64 || salaSelecionada.imagem
+      };
+
       const queryParams = new URLSearchParams({
         idUsuario: idLocal,
         idSala: salaEditando.id,
@@ -142,7 +143,10 @@ export default function Salas({ showToast }) {
 
       const response = await fetch(`/AtualizarSala?${queryParams}`, {
         method: 'PATCH',
-        body: formData
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(dadosParaEnviar)
       });
 
       if (!response.ok) {
@@ -210,24 +214,38 @@ export default function Salas({ showToast }) {
       nome: '',
       sobre: '',
       categoria: 'sala',
-      quantidadeMaxima: 10,
-      imagemAtual: ''
+      quantidadeMaxima: 10
     });
-    setImagemFile(null);
+    setImagemBase64(null);
     setPreviewImagem(null);
     setSalaSelecionada(null);
   };
 
-  // Processa upload de imagem
+  // Processa upload de imagem e converte para Base64
   const handleImagemChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setImagemFile(file);
-      
-      // Cria preview da imagem
+      // Valida tipo de arquivo
+      if (!file.type.match('image.*')) {
+        showToast('Por favor, selecione apenas imagens', 'error');
+        return;
+      }
+
+      // Valida tamanho (5MB máximo)
+      if (file.size > 5 * 1024 * 1024) {
+        showToast('A imagem deve ter no máximo 5MB', 'error');
+        return;
+      }
+
+      // Converte para Base64
       const reader = new FileReader();
       reader.onloadend = () => {
-        setPreviewImagem(reader.result);
+        const base64String = reader.result;
+        setImagemBase64(base64String);
+        setPreviewImagem(base64String); // Para preview
+      };
+      reader.onerror = () => {
+        showToast('Erro ao ler a imagem', 'error');
       };
       reader.readAsDataURL(file);
     }
@@ -236,10 +254,8 @@ export default function Salas({ showToast }) {
   // Obtém URL da imagem da sala
   const getImagemSala = (sala) => {
     if (sala.imagem) {
-      if (sala.imagem.startsWith('http')) {
-        return sala.imagem;
-      }
-      return `${sala.imagem}`; // URL completa
+      // Se a imagem já está em Base64, retorna diretamente
+      return sala.imagem;
     }
     return null; // Sem imagem
   };
@@ -283,6 +299,10 @@ export default function Salas({ showToast }) {
                       src={getImagemSala(sala)} 
                       alt={sala.nome}
                       className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIwIiBoZWlnaHQ9IjMyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjFmMWYxIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNiIgZmlsbD0iIzY2NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg==";
+                      }}
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-6xl">
@@ -411,24 +431,33 @@ export default function Salas({ showToast }) {
               {/* Upload de Imagem */}
               <div className="mb-6">
                 <label className="block font-semibold mb-2">Imagem da Sala</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImagemChange}
-                  className="w-full text-sm text-gray-500"
-                />
-                
-                {/* Preview da imagem */}
-                {previewImagem && (
-                  <div className="mt-4">
-                    <p className="text-xs mb-1 text-gray-600">Preview:</p>
-                    <img 
-                      src={previewImagem} 
-                      alt="Preview" 
-                      className="w-full h-32 object-cover rounded-lg"
-                    />
-                  </div>
-                )}
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-400 transition-colors">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImagemChange}
+                    className="hidden"
+                    id="imagemInput"
+                  />
+                  <label htmlFor="imagemInput" className="cursor-pointer block">
+                    {previewImagem ? (
+                      <div>
+                        <img 
+                          src={previewImagem} 
+                          alt="Preview" 
+                          className="w-full h-32 object-cover rounded-lg mb-2"
+                        />
+                        <p className="text-sm text-blue-600">Clique para alterar a imagem</p>
+                      </div>
+                    ) : (
+                      <div className="py-8">
+                        <div className="text-4xl mb-2">📷</div>
+                        <p className="text-sm text-gray-600">Clique para selecionar uma imagem</p>
+                        <p className="text-xs text-gray-500 mt-1">Máximo 5MB • JPG, PNG, GIF</p>
+                      </div>
+                    )}
+                  </label>
+                </div>
               </div>
               
               {/* Botões */}
@@ -517,39 +546,42 @@ export default function Salas({ showToast }) {
 
               {/* Upload de Imagem */}
               <div className="mb-6">
-                <label className="block font-semibold mb-2">Alterar Imagem</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImagemChange}
-                  className="w-full text-sm text-gray-500"
-                />
-                
-                {/* Imagem atual e preview */}
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Imagem atual */}
-                  {getImagemSala(salaSelecionada) && !previewImagem && (
-                    <div>
-                      <p className="text-xs mb-1 text-gray-600">Imagem Atual:</p>
-                      <img 
-                        src={getImagemSala(salaSelecionada)} 
-                        alt="Imagem atual"
-                        className="w-full h-32 object-cover rounded-lg"
-                      />
-                    </div>
-                  )}
-                  
-                  {/* Nova imagem (preview) */}
-                  {previewImagem && (
-                    <div>
-                      <p className="text-xs mb-1 text-gray-600">Nova Imagem:</p>
-                      <img 
-                        src={previewImagem} 
-                        alt="Preview" 
-                        className="w-full h-32 object-cover rounded-lg"
-                      />
-                    </div>
-                  )}
+                <label className="block font-semibold mb-2">Imagem da Sala</label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-400 transition-colors">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImagemChange}
+                    className="hidden"
+                    id="imagemInputEditar"
+                  />
+                  <label htmlFor="imagemInputEditar" className="cursor-pointer block">
+                    {previewImagem ? (
+                      <div>
+                        <img 
+                          src={previewImagem} 
+                          alt="Preview" 
+                          className="w-full h-32 object-cover rounded-lg mb-2"
+                        />
+                        <p className="text-sm text-blue-600">Nova imagem selecionada. Clique para alterar.</p>
+                      </div>
+                    ) : salaSelecionada.imagem ? (
+                      <div>
+                        <img 
+                          src={salaSelecionada.imagem} 
+                          alt="Imagem atual"
+                          className="w-full h-32 object-cover rounded-lg mb-2"
+                        />
+                        <p className="text-sm text-gray-600">Imagem atual. Clique para substituir.</p>
+                      </div>
+                    ) : (
+                      <div className="py-8">
+                        <div className="text-4xl mb-2">📷</div>
+                        <p className="text-sm text-gray-600">Nenhuma imagem. Clique para adicionar.</p>
+                        <p className="text-xs text-gray-500 mt-1">Máximo 5MB • JPG, PNG, GIF</p>
+                      </div>
+                    )}
+                  </label>
                 </div>
               </div>
               

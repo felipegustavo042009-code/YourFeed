@@ -12,46 +12,12 @@ const dotenv = require('dotenv');
 dotenv.config();
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, "build")));
 
 const PORT = 5000;
-
-// Salva imagens na pasta 'uploads/'
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        const uploadPath = 'uploads/';
-        if (!fs.existsSync(uploadPath)) {
-            fs.mkdirSync(uploadPath, { recursive: true });
-        }
-        cb(null, uploadPath); // Pasta onde as imagens vão
-    },
-    filename: function (req, file, cb) {
-        // Gera nome único: 'imagem-123456789.jpg'
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const ext = path.extname(file.originalname); // Pega extensão (.jpg, .png)
-        cb(null, 'imagem-' + uniqueSuffix + ext);
-    }
-});
-
-// Configura o upload (limite 5MB, apenas imagens)
-const upload = multer({
-    storage: storage,
-    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB máximo
-    fileFilter: function (req, file, cb) {
-        // Aceita apenas: jpeg, jpg, png, gif, webp
-        const filetypes = /jpeg|jpg|png|gif|webp/;
-        const mimetype = filetypes.test(file.mimetype); // Tipo do arquivo
-        const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-
-        if (mimetype && extname) {
-            return cb(null, true); // Aceita arquivo
-        }
-        cb(new Error('Apenas imagens são permitidas!')); // Rejeita
-    }
-});
 
 // Permite acessar imagens via URL: http://localhost:5000/uploads/nome-da-imagem.jpg
 app.use('/uploads', express.static('uploads'));
@@ -72,7 +38,7 @@ const Ocupacao = mongoose.model('ocupacao', new mongoose.Schema({
     Nome: { type: String, required: true }, // Nome da sala
     Sobre: String, // Descrição
     Categoria: { type: String, enum: ['esporte', 'palestra', 'sala', 'reuniao'], required: true },
-    Imagem: { type: String, default: '' }, // Nome do arquivo da imagem
+    Imagem: { type: String, default: '' }, // Base64 da imagem ou caminho
     QuantidadeMaxima: { type: Number, required: true, min: 1 } // Capacidade
 }, { timestamps: true }));
 
@@ -109,7 +75,17 @@ const Usuario = mongoose.model('usuario', new mongoose.Schema({
     Tipo: { type: String, enum: ['adm', 'funcionario', 'usuario'], default: 'usuario', required: true }
 }));
 
+// Função para processar imagem Base64
+function processarImagemBase64(imagemBase64) {
+    if (!imagemBase64) return null;
 
+    // Verifica se é uma string Base64 válida
+    if (imagemBase64.startsWith('data:image/')) {
+        return imagemBase64; // Retorna o Base64 completo
+    }
+
+    return imagemBase64;
+}
 
 // Rotas
 
@@ -378,7 +354,7 @@ app.get('/ListarSala', async (req, res) => {
             nome: sala.Nome,
             sobre: sala.Sobre,
             categoria: sala.Categoria,
-            imagem: sala.Imagem ? `/uploads/${path.basename(sala.Imagem)}` : null,
+            imagem: sala.Imagem,
             quantidadeMaxima: sala.QuantidadeMaxima
         }));
 
@@ -394,29 +370,31 @@ app.get('/ListarSala', async (req, res) => {
 });
 
 // POST /CriarSala - Cria nova sala (somente admin)
-app.post('/CriarSala', upload.single('imagem'), async (req, res) => {
+app.post('/CriarSala', async (req, res) => {
     try {
         const { idUsuarios, nome, sobre, tipo, quantidadeMaxima } = req.query;
+        const { imagemBase64 } = req.body;
 
         // Valida dados obrigatórios
         if (!nome || !tipo || !quantidadeMaxima) {
-            if (req.file) fs.unlinkSync(req.file.path); // Remove imagem se houver erro
             return res.status(400).json({ mensagem: 'Nome, tipo e quantidade máxima são obrigatórios' });
         }
 
         // Verifica se usuário é admin
         const validarTipo = await Usuario.findOne({ id: idUsuarios, Tipo: 'adm' });
         if (!validarTipo) {
-            if (req.file) fs.unlinkSync(req.file.path);
             return res.status(403).json({ mensagem: 'Usuário precisa ser administrador' });
         }
+
+        // Processa imagem Base64
+        const imagemProcessada = processarImagemBase64(imagemBase64);
 
         // Cria nova sala
         const novaSala = new Ocupacao({
             Nome: nome,
             Sobre: sobre || '',
             Categoria: tipo,
-            Imagem: req.file ? req.file.filename : '', // Nome do arquivo
+            Imagem: imagemProcessada || '', // Base64 da imagem
             QuantidadeMaxima: parseInt(quantidadeMaxima)
         });
 
@@ -429,13 +407,12 @@ app.post('/CriarSala', upload.single('imagem'), async (req, res) => {
                 nome: novaSala.Nome,
                 sobre: novaSala.Sobre,
                 categoria: novaSala.Categoria,
-                imagem: req.file ? `/uploads/${req.file.filename}` : '',
+                imagem: novaSala.Imagem,
                 quantidadeMaxima: novaSala.QuantidadeMaxima
             }
         });
 
     } catch (error) {
-        if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
         console.error(error);
         return res.status(500).json({ mensagem: "Erro ao criar sala", erro: error.message });
     }
@@ -462,12 +439,6 @@ app.delete('/DeletarSala', async (req, res) => {
             return res.status(404).json({ mensagem: "Sala não encontrada" });
         }
 
-        // Remove imagem associada
-        if (salaExistente.Imagem) {
-            const imagePath = path.join('uploads', salaExistente.Imagem);
-            if (fs.existsSync(imagePath)) fs.unlinkSync(imagePath);
-        }
-
         await Ocupacao.deleteOne({ id: idSala });
         return res.status(200).json({ mensagem: "Sala deletada com sucesso" });
 
@@ -478,26 +449,24 @@ app.delete('/DeletarSala', async (req, res) => {
 });
 
 // PATCH /AtualizarSala - Atualiza dados da sala (somente admin)
-app.patch('/AtualizarSala', upload.single('imagem'), async (req, res) => {
+app.patch('/AtualizarSala', async (req, res) => {
     try {
         const { idUsuario, idSala, nome, sobre, quantidadeMaxima } = req.query;
+        const { imagemBase64 } = req.body;
 
         // Verifica permissão
         const validarUsuario = await Usuario.findOne({ id: idUsuario, Tipo: 'adm' });
         if (!validarUsuario) {
-            if (req.file) fs.unlinkSync(req.file.path);
             return res.status(403).json({ mensagem: "Usuário não tem permissão para atualizar sala" });
         }
 
         if (!idSala) {
-            if (req.file) fs.unlinkSync(req.file.path);
             return res.status(400).json({ mensagem: "ID da sala é obrigatório" });
         }
 
         // Busca sala
         const salaExistente = await Ocupacao.findOne({ id: idSala });
         if (!salaExistente) {
-            if (req.file) fs.unlinkSync(req.file.path);
             return res.status(404).json({ mensagem: "Sala não encontrada" });
         }
 
@@ -507,13 +476,12 @@ app.patch('/AtualizarSala', upload.single('imagem'), async (req, res) => {
         if (sobre !== undefined) dadosAtualizacao.Sobre = sobre;
         if (quantidadeMaxima !== undefined) dadosAtualizacao.QuantidadeMaxima = parseInt(quantidadeMaxima);
 
-        // Se nova imagem foi enviada, remove a antiga
-        if (req.file) {
-            if (salaExistente.Imagem) {
-                const oldImagePath = path.join('uploads', salaExistente.Imagem);
-                if (fs.existsSync(oldImagePath)) fs.unlinkSync(oldImagePath);
+        // Se nova imagem foi enviada
+        if (imagemBase64) {
+            const imagemProcessada = processarImagemBase64(imagemBase64);
+            if (imagemProcessada) {
+                dadosAtualizacao.Imagem = imagemProcessada;
             }
-            dadosAtualizacao.Imagem = req.file.filename;
         }
 
         // Atualiza no banco
@@ -527,13 +495,12 @@ app.patch('/AtualizarSala', upload.single('imagem'), async (req, res) => {
                 nome: salaAtualizada.Nome,
                 sobre: salaAtualizada.Sobre,
                 categoria: salaAtualizada.Categoria,
-                imagem: salaAtualizada.Imagem ? `/uploads/${salaAtualizada.Imagem}` : '',
+                imagem: salaAtualizada.Imagem,
                 quantidadeMaxima: salaAtualizada.QuantidadeMaxima
             }
         });
 
     } catch (error) {
-        if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
         console.error(error);
         return res.status(500).json({ mensagem: "Erro ao atualizar sala", erro: error.message });
     }
@@ -821,4 +788,3 @@ app.listen(PORT, () => {
     console.log(`Servidor rodando com sucesso na porta ${PORT}`);
 
 });
-
